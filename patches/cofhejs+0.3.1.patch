@@ -1,0 +1,32 @@
+diff --git a/node_modules/cofhejs/dist/node.js b/node_modules/cofhejs/dist/node.js
+index 59f7216..d697d05 100644
+--- a/node_modules/cofhejs/dist/node.js
++++ b/node_modules/cofhejs/dist/node.js
+@@ -28385,23 +28385,18 @@ async function checkIsTestnet(provider) {
+   try {
+     const existsIface = new ethers_exports.Interface(fnExistsIface);
+     const existsCallData = existsIface.encodeFunctionData("exists");
+-    const zkVerifierExistsRaw = await provider.call({
+-      to: MockZkVerifierAddress,
+-      data: existsCallData
+-    });
++    // PATCH: Check QueryDecrypter first (at 0x200, which works).
++    // ZkVerifier at 0x100 fails on Hardhat cancun due to P-256 precompile conflict.
+     const queryDecrypterExistsRaw = await provider.call({
+       to: MockQueryDecrypterAddress,
+       data: existsCallData
+     });
+-    const [zkVerifierExists] = existsIface.decodeFunctionResult(
+-      "exists",
+-      zkVerifierExistsRaw
+-    );
+     const [queryDecrypterExists] = existsIface.decodeFunctionResult(
+       "exists",
+       queryDecrypterExistsRaw
+     );
+-    return zkVerifierExists && queryDecrypterExists;
++    // If QueryDecrypter exists, we're in mock mode — skip ZkVerifier check
++    return queryDecrypterExists;
+   } catch (err) {
+     return false;
+   }

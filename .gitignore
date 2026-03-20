@@ -1,0 +1,21 @@
+node_modules
+.env
+
+# Hardhat files
+/cache
+/artifacts
+
+# TypeChain files
+/typechain
+/typechain-types
+
+# Coverage
+/coverage
+/coverage.json
+
+# Deployments
+deployments/eth-sepolia.json
+
+# Frontend
+frontend/node_modules
+frontend/dist

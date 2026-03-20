@@ -1,0 +1,19 @@
+diff --git a/node_modules/cofhe-hardhat-plugin/dist/src/deploy-mocks.js b/node_modules/cofhe-hardhat-plugin/dist/src/deploy-mocks.js
+index 6907ea8..15b00c5 100644
+--- a/node_modules/cofhe-hardhat-plugin/dist/src/deploy-mocks.js
++++ b/node_modules/cofhe-hardhat-plugin/dist/src/deploy-mocks.js
+@@ -45,11 +45,9 @@ const deployMockZkVerifier = async (hre) => {
+     const zkVerifierArtifact = await hre.artifacts.readArtifact("MockZkVerifier");
+     await (0, utils_1.hardhatSetCode)(hre, addresses_1.ZK_VERIFIER_ADDRESS, zkVerifierArtifact.deployedBytecode);
+     const zkVerifier = await hre.ethers.getContractAt("MockZkVerifier", addresses_1.ZK_VERIFIER_ADDRESS);
+-    const zkVerifierExists = await zkVerifier.exists();
+-    if (!zkVerifierExists) {
+-        (0, utils_1.logError)("MockZkVerifier does not exist", 2);
+-        throw new Error("MockZkVerifier does not exist");
+-    }
++    // PATCH: Skip exists() check — Hardhat treats 0x100 as P-256 precompile in cancun,
++    // so eth_call returns 0x even though hardhat_setCode succeeds.
++    // The code IS deployed correctly; this is a Hardhat-EDR compatibility issue.
+     return zkVerifier;
+ };
+ const deployMockQueryDecrypter = async (hre, acl) => {
