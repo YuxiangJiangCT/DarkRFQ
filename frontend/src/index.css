@@ -57,7 +57,7 @@ a:hover {
   align-items: center;
   padding: 16px 0;
   border-bottom: 1px solid var(--border);
-  gap: 24px;
+  gap: 16px;
 }
 
 .logo {
@@ -66,11 +66,20 @@ a:hover {
   color: var(--text-bright);
   letter-spacing: -0.5px;
 }
+.logo-icon {
+  margin-right: 4px;
+}
+
+.tagline {
+  font-size: 12px;
+  color: var(--text);
+  font-style: italic;
+  margin-right: auto;
+}
 
 .nav {
   display: flex;
   gap: 16px;
-  flex: 1;
 }
 .nav a {
   color: var(--text);
@@ -81,7 +90,7 @@ a:hover {
 }
 
 .wallet {
-  margin-left: auto;
+  margin-left: 16px;
 }
 .account {
   background: var(--bg-card);
@@ -103,8 +112,14 @@ a:hover {
 }
 .center-message h2 {
   color: var(--text-bright);
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   font-size: 20px;
+}
+.subtitle {
+  color: var(--text);
+  font-size: 14px;
+  max-width: 400px;
+  margin: 0 auto;
 }
 
 /* ── Buttons ────────────────────────────────────────── */
@@ -240,12 +255,27 @@ a:hover {
   font-weight: 500;
 }
 
+.card-privacy {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .card-winner {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
   font-size: 13px;
   color: var(--status-revealed);
+}
+
+.lock-icon {
+  font-size: 14px;
 }
 
 /* ── Create Page ────────────────────────────────────── */
@@ -393,15 +423,52 @@ a:hover {
   text-align: right;
 }
 
+/* ── Encrypted State Indicator ──────────────────────── */
+
+.encrypted-state {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.encrypted-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.encrypted-label {
+  font-size: 13px;
+  color: var(--text);
+}
+
 .encrypted-badge {
   font-family: monospace;
-  font-size: 12px !important;
+  font-size: 12px;
   background: rgba(124, 92, 252, 0.15);
-  color: var(--accent) !important;
-  padding: 2px 8px;
+  color: var(--accent);
+  padding: 4px 12px;
   border-radius: 4px;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 1px;
+  font-weight: 600;
 }
+
+.encrypted-note {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+  padding: 10px 12px;
+  background: rgba(124, 92, 252, 0.05);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--accent);
+}
+
+/* ── Action Sections ────────────────────────────────── */
 
 .action-section {
   margin-bottom: 20px;
@@ -415,12 +482,40 @@ a:hover {
   line-height: 1.5;
 }
 
-.hint {
-  font-size: 12px !important;
+/* ── Privacy Notice (in quote form) ─────────────────── */
+
+.privacy-notice {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(124, 92, 252, 0.05);
+  border: 1px solid rgba(124, 92, 252, 0.12);
+  border-radius: var(--radius);
+  font-size: 12px;
   color: var(--text);
-  margin-top: 10px !important;
-  line-height: 1.4;
+  line-height: 1.5;
 }
+
+.revealed-privacy {
+  text-align: left;
+  background: rgba(34, 197, 94, 0.05);
+  border-color: rgba(34, 197, 94, 0.15);
+}
+.revealed-privacy strong {
+  color: var(--success);
+}
+
+/* ── Quote Form ─────────────────────────────────────── */
+
+.quote-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Messages ───────────────────────────────────────── */
 
 .info-msg {
   background: rgba(124, 92, 252, 0.08);
@@ -429,6 +524,9 @@ a:hover {
   border-radius: var(--radius);
   font-size: 13px;
   color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .error-msg {
@@ -451,6 +549,38 @@ a:hover {
   margin-top: 12px;
 }
 
+/* ── Decrypt Status ─────────────────────────────────── */
+
+.decrypt-status {
+  margin-bottom: 12px;
+}
+
+.decrypt-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--status-closed);
+}
+
+.pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--status-closed);
+  animation: pulse-anim 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-anim {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
 /* ── Revealed Section ───────────────────────────────── */
 
 .revealed-section {
@@ -461,11 +591,11 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 20px;
+  padding: 24px;
   background: rgba(124, 92, 252, 0.06);
   border: 1px solid rgba(124, 92, 252, 0.15);
   border-radius: var(--radius);
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .winner-label {
@@ -478,7 +608,7 @@ a:hover {
 }
 
 .winner-value {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--text-bright);
 }

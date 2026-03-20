@@ -1,6 +1,6 @@
 import { ethers } from 'ethers'
 
-export const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || '0x5FbDB2315678afecb367f032d93F642f64180aa3'
+export const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || '0xcFB0D5b69e4f606450d3001D8Eb1AED280B212b5'
 
 export const DARK_RFQ_ABI = [
   'function createRFQ(string label, bool isBuy, uint256 amount, uint256 deadline) external returns (uint256 rfqId)',

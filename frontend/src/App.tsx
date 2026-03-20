@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Routes, Route, Link } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import { ethers } from 'ethers'
+import Header from './components/Header'
 import Home from './pages/Home'
 import CreateRFQ from './pages/CreateRFQ'
 import RFQDetail from './pages/RFQDetail'
-import { shortenAddress } from './contracts'
 
 declare global {
   interface Window {
@@ -69,24 +69,7 @@ function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <Link to="/" className="logo">
-          DarkRFQ
-        </Link>
-        <nav className="nav">
-          <Link to="/">RFQs</Link>
-          <Link to="/create">Create</Link>
-        </nav>
-        <div className="wallet">
-          {account ? (
-            <span className="account">{shortenAddress(account)}</span>
-          ) : (
-            <button onClick={connect} className="btn btn-primary">
-              Connect Wallet
-            </button>
-          )}
-        </div>
-      </header>
+      <Header account={account} onConnect={connect} />
 
       <main className="main">
         <Routes>

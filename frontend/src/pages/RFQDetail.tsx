@@ -4,13 +4,16 @@ import { ethers } from 'ethers'
 import {
   getContract,
   parseRFQInfo,
-  statusLabel,
   formatDeadline,
   timeRemaining,
   shortenAddress,
   RFQStatus,
   type RFQInfo,
 } from '../contracts'
+import StatusBadge from '../components/StatusBadge'
+import SubmitQuoteForm from '../components/SubmitQuoteForm'
+import CloseButton from '../components/CloseButton'
+import RevealPanel from '../components/RevealPanel'
 
 interface Props {
   provider: ethers.BrowserProvider | null
@@ -25,14 +28,6 @@ export default function RFQDetail({ provider, signer, account }: Props) {
   const [rfq, setRfq] = useState<RFQInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [alreadyQuoted, setAlreadyQuoted] = useState(false)
-
-  // Quote form state
-  const [price, setPrice] = useState('')
-  const [quoting, setQuoting] = useState(false)
-
-  // Action states
-  const [closing, setClosing] = useState(false)
-  const [revealing, setRevealing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -66,91 +61,6 @@ export default function RFQDetail({ provider, signer, account }: Props) {
     return () => clearInterval(interval)
   }, [rfq, loadRFQ])
 
-  const handleSubmitQuote = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!signer || !price) return
-    setError(null)
-    setSuccess(null)
-
-    try {
-      setQuoting(true)
-
-      // Import cofhejs dynamically to avoid SSR issues
-      const { cofhejs, Encryptable } = await import('cofhejs/web')
-
-      // Initialize cofhejs with current signer
-      await cofhejs.initialize({
-        provider: provider!,
-        signer,
-      })
-
-      // Encrypt the price
-      const result = await cofhejs.encrypt([
-        Encryptable.uint64(BigInt(price)),
-      ] as const)
-
-      if (!result.success) {
-        throw new Error('Encryption failed: ' + (result.error?.message || 'unknown'))
-      }
-
-      const [encrypted] = result.data
-
-      // Submit encrypted quote to contract
-      const contract = getContract(signer)
-      const tx = await contract.submitQuote(rfqId, encrypted)
-      await tx.wait()
-
-      setSuccess('Quote submitted successfully!')
-      setPrice('')
-      await loadRFQ()
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to submit quote'
-      setError(message)
-    } finally {
-      setQuoting(false)
-    }
-  }
-
-  const handleClose = async () => {
-    if (!signer) return
-    setError(null)
-    setSuccess(null)
-
-    try {
-      setClosing(true)
-      const contract = getContract(signer)
-      const tx = await contract.closeRFQ(rfqId)
-      await tx.wait()
-      setSuccess('RFQ closed! Decryption in progress...')
-      await loadRFQ()
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to close RFQ'
-      setError(message)
-    } finally {
-      setClosing(false)
-    }
-  }
-
-  const handleReveal = async () => {
-    if (!signer) return
-    setError(null)
-    setSuccess(null)
-
-    try {
-      setRevealing(true)
-      const contract = getContract(signer)
-      const tx = await contract.revealResults(rfqId)
-      await tx.wait()
-      setSuccess('Results revealed!')
-      await loadRFQ()
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to reveal results'
-      setError(message)
-    } finally {
-      setRevealing(false)
-    }
-  }
-
   if (!provider) {
     return (
       <div className="center-message">
@@ -172,7 +82,9 @@ export default function RFQDetail({ provider, signer, account }: Props) {
 
   return (
     <div className="detail-page">
-      <Link to="/" className="back-link">Back to RFQs</Link>
+      <Link to="/" className="back-link">
+        &larr; Back to RFQs
+      </Link>
 
       <div className="detail-header">
         <h1>{rfq.label}</h1>
@@ -180,132 +92,123 @@ export default function RFQDetail({ provider, signer, account }: Props) {
           <span className={`badge badge-${rfq.isBuy ? 'buy' : 'sell'}`}>
             {rfq.isBuy ? 'BUY' : 'SELL'}
           </span>
-          <span className={`badge badge-status-${rfq.status}`}>
-            {statusLabel(rfq.status)}
-          </span>
+          <StatusBadge status={rfq.status} />
         </div>
       </div>
 
       <div className="detail-grid">
+        {/* Left: Info */}
         <div className="info-card">
           <h3>Details</h3>
           <dl>
             <dt>Requester</dt>
-            <dd>{shortenAddress(rfq.requester)} {isRequester && '(you)'}</dd>
+            <dd>
+              {shortenAddress(rfq.requester)} {isRequester && '(you)'}
+            </dd>
             <dt>Amount</dt>
             <dd>{rfq.amount.toString()}</dd>
+            <dt>Side</dt>
+            <dd>{rfq.isBuy ? 'Buy (lowest wins)' : 'Sell (highest wins)'}</dd>
             <dt>Deadline</dt>
             <dd>{formatDeadline(rfq.deadline)}</dd>
             <dt>Time Remaining</dt>
             <dd>{timeRemaining(rfq.deadline)}</dd>
             <dt>Quotes</dt>
             <dd>{rfq.quoteCount.toString()}</dd>
-            <dt>Best Quote</dt>
-            <dd className="encrypted-badge">ENCRYPTED</dd>
           </dl>
+
+          {/* Privacy indicator */}
+          {rfq.status !== RFQStatus.REVEALED && (
+            <div className="encrypted-state">
+              <div className="encrypted-row">
+                <span className="encrypted-label">Best Quote</span>
+                <span className="encrypted-badge">
+                  &#x1f512; ENCRYPTED
+                </span>
+              </div>
+              <div className="encrypted-row">
+                <span className="encrypted-label">Best Maker</span>
+                <span className="encrypted-badge">
+                  &#x1f512; ENCRYPTED
+                </span>
+              </div>
+              <p className="encrypted-note">
+                Best quote remains encrypted until reveal. No one can see any
+                price during the quoting period.
+              </p>
+            </div>
+          )}
         </div>
 
+        {/* Right: Actions */}
         <div className="action-card">
-          {/* OPEN: Quote form */}
+          {/* OPEN + before deadline: Quote form */}
           {rfq.status === RFQStatus.OPEN && !deadlinePassed && (
             <div className="action-section">
               <h3>Submit Quote</h3>
               {alreadyQuoted ? (
-                <p className="info-msg">You have already submitted a quote for this RFQ.</p>
-              ) : !account ? (
-                <p className="info-msg">Connect wallet to submit a quote.</p>
+                <div className="info-msg">
+                  <span className="lock-icon">&#x2713;</span> You have already
+                  submitted an encrypted quote for this RFQ.
+                </div>
+              ) : !account || !signer ? (
+                <div className="info-msg">
+                  Connect wallet to submit a quote.
+                </div>
               ) : (
-                <form onSubmit={handleSubmitQuote}>
-                  <div className="form-group">
-                    <label>Your Price (encrypted via FHE)</label>
-                    <input
-                      type="number"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      placeholder="e.g. 1500"
-                      min="1"
-                      required
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn btn-primary btn-full"
-                    disabled={quoting}
-                  >
-                    {quoting ? 'Encrypting & Submitting...' : 'Submit Encrypted Quote'}
-                  </button>
-                  <p className="hint">
-                    Your price is encrypted client-side using FHE. No one — not even the
-                    contract — can see your price until the RFQ is closed and revealed.
-                  </p>
-                </form>
+                <SubmitQuoteForm
+                  rfqId={rfqId}
+                  provider={provider}
+                  signer={signer}
+                  onSuccess={() => {
+                    setSuccess('Quote submitted successfully! Your price is encrypted on-chain.')
+                    setAlreadyQuoted(true)
+                    loadRFQ()
+                  }}
+                  onError={(msg) => setError(msg)}
+                />
               )}
             </div>
           )}
 
-          {/* OPEN + Deadline passed: Close button for requester */}
-          {rfq.status === RFQStatus.OPEN && deadlinePassed && (
-            <div className="action-section">
-              <h3>Deadline Passed</h3>
+          {/* OPEN + deadline passed: Close button for requester */}
+          {rfq.status === RFQStatus.OPEN && deadlinePassed && signer && (
+            <>
               {isRequester ? (
-                <>
-                  <p>The deadline has passed. Close this RFQ to begin decryption.</p>
-                  <button
-                    onClick={handleClose}
-                    className="btn btn-primary btn-full"
-                    disabled={closing}
-                  >
-                    {closing ? 'Closing...' : 'Close RFQ'}
-                  </button>
-                </>
+                <CloseButton
+                  rfqId={rfqId}
+                  signer={signer}
+                  onSuccess={() => {
+                    setSuccess('RFQ closed! Decryption triggered via CoFHE coprocessor.')
+                    loadRFQ()
+                  }}
+                  onError={(msg) => setError(msg)}
+                />
               ) : (
-                <p className="info-msg">Waiting for requester to close this RFQ.</p>
+                <div className="action-section">
+                  <h3>Deadline Passed</h3>
+                  <div className="info-msg">
+                    Waiting for the requester to close this RFQ.
+                  </div>
+                </div>
               )}
-            </div>
+            </>
           )}
 
-          {/* CLOSED: Reveal button */}
-          {rfq.status === RFQStatus.CLOSED && (
-            <div className="action-section">
-              <h3>Reveal Results</h3>
-              <p>
-                Decryption has been requested. Click below to reveal the winning
-                quote. If decryption is not yet ready, try again in a few seconds.
-              </p>
-              <button
-                onClick={handleReveal}
-                className="btn btn-primary btn-full"
-                disabled={revealing}
-              >
-                {revealing ? 'Revealing...' : 'Reveal Winner'}
-              </button>
-            </div>
-          )}
-
-          {/* REVEALED: Show winner */}
-          {rfq.status === RFQStatus.REVEALED && (
-            <div className="action-section revealed-section">
-              <h3>Winner</h3>
-              <div className="winner-display">
-                <div className="winner-price">
-                  <span className="winner-label">Winning Price</span>
-                  <span className="winner-value">
-                    {rfq.revealedWinningPrice.toString()}
-                  </span>
-                </div>
-                <div className="winner-maker">
-                  <span className="winner-label">Winning Maker</span>
-                  <span className="winner-value">
-                    {shortenAddress(rfq.revealedWinningMaker)}
-                  </span>
-                </div>
-              </div>
-              <p className="hint">
-                Only the winning price and maker are revealed. All losing quotes
-                remain permanently encrypted.
-              </p>
-            </div>
-          )}
+          {/* CLOSED or REVEALED: Reveal panel */}
+          {(rfq.status === RFQStatus.CLOSED ||
+            rfq.status === RFQStatus.REVEALED) &&
+            signer && (
+              <RevealPanel
+                rfq={rfq}
+                signer={signer}
+                onSuccess={() => {
+                  setSuccess('Winner revealed!')
+                  loadRFQ()
+                }}
+                onError={(msg) => setError(msg)}
+              />
+            )}
 
           {error && <div className="error-msg">{error}</div>}
           {success && <div className="success-msg">{success}</div>}
