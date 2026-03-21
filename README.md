@@ -1,207 +1,130 @@
 # DarkRFQ
 
-> **Private quotes. Fairer execution.**
+> Privacy-native execution infrastructure for confidential price discovery on public blockchains.
 
-A privacy-native RFQ protocol built on [Fhenix CoFHE](https://www.fhenix.io/). Makers submit encrypted price quotes using Fully Homomorphic Encryption. The contract selects the best quote entirely in the encrypted domain — no one sees any price until the requester reveals only the winner. Losing quotes remain permanently private.
+On transparent blockchains, every on-chain quote leaks pricing strategy — enabling front-running, discouraging participation, and distorting price discovery. DarkRFQ is a new primitive for confidential price discovery: quotes are encrypted client-side with Fully Homomorphic Encryption, compared homomorphically on-chain, and only the minimum necessary outcome is revealed. Losing quotes remain permanently encrypted.
+
+Starting with sealed-bid RFQs as the first wedge, DarkRFQ aims to become the execution layer for any high-stakes coordination that requires price privacy — treasury rebalancing, liquidation auctions, solver competition, and beyond.
+
+## What We've Validated
+
+This is not a concept. The core primitive has been built and verified end-to-end:
+
+- **Deployed on Sepolia** with full encrypted quote lifecycle ([`0x0CFddD9fb73648D095A3791115A89DcE4b96faB6`](https://sepolia.etherscan.io/address/0x0CFddD9fb73648D095A3791115A89DcE4b96faB6))
+- **24 tests passing** — creation, quoting, best-price selection, close, reveal, and all 3 reveal policies
+- **Selective reveal** — requester configures what gets decrypted: price-only, maker-only, or both
+- **Local E2E verification** script validating the complete lifecycle: create → quote → close → reveal
+- **Frontend prototype** with client-side FHE encryption via cofhejs and MetaMask integration
+
+## Why This Matters
+
+Quote leakage is a real and measurable problem. OTC desks lose edge when counterparties see their pricing. DAO treasuries signal sell intent before execution, moving the market against themselves. Liquidation backstops attract front-runners who extract value from distressed collateral.
+
+Current solutions — off-chain RFQ platforms, centralized dark pools — trade away verifiability for privacy. They require trust in a centralized matchmaker and offer no on-chain auditability.
+
+DarkRFQ eliminates this tradeoff: confidential execution with on-chain verifiability. Quotes are private, comparison is trustless, and reveal is configurable.
+
+## Why FHE
+
+For asynchronous, multi-party confidential price discovery on public blockchains, FHE is the best fit. Quotes can be encrypted client-side, compared on encrypted data, and revealed selectively — without requiring all participants to be online at the same time.
+
+|  | FHE-based | ZK-based | MPC-based |
+|---|---|---|---|
+| Interaction | Non-interactive: encrypt and submit | Prover must generate proof | Parties must be online together |
+| Computation | On-chain (coprocessor) | Off-chain (prover) | Off-chain (MPC nodes) |
+| Flexibility | New logic = new contract | New logic = new circuit | New logic = new protocol |
+| Best for | Async multi-party bidding | Private transfers | Bilateral matching |
 
 ## How It Works
 
 ```
-Requester creates RFQ (label, buy/sell, amount, deadline)
+Requester creates RFQ (label, buy/sell, amount, deadline, reveal policy)
         ↓
-Makers submit encrypted quotes (client-side FHE encryption)
+Makers submit encrypted quotes (client-side FHE encryption via cofhejs)
         ↓
 Contract compares prices homomorphically (FHE.lt / FHE.gt / FHE.select)
         ↓
-Deadline passes → Requester closes RFQ → async decryption requested
+Deadline passes → Requester closes RFQ → async decryption triggered
         ↓
-Anyone calls revealResults → winning price + maker revealed
+revealResults() called → winner revealed per reveal policy
         ↓
-Losing quotes remain encrypted forever
+Losing quotes remain encrypted forever on-chain
 ```
 
-## Key Privacy Properties
+## Selective Reveal Policy
 
-- **Quote privacy**: All prices are encrypted client-side before submission. The contract never sees plaintext prices.
-- **Homomorphic comparison**: Best-price selection happens entirely in the encrypted domain using `FHE.select`.
-- **Selective reveal**: Only the winning price and winning maker are decrypted. All losing quotes remain permanently encrypted.
-- **Configurable reveal policy**: Requesters choose what to reveal — price only, maker only, or both. Unrevealed fields stay encrypted forever.
-- **No trusted party**: The FHE coprocessor handles decryption — no centralized oracle or trusted third party.
+Not all price discovery needs full transparency. DarkRFQ lets the requester configure exactly what gets decrypted:
 
-## Tech Stack
+| Policy | Reveals | Keeps Private | Use Case |
+|--------|---------|---------------|----------|
+| **Both** | Price + Maker | Nothing | Transparent auctions |
+| **Price Only** | Winning price | Maker identity | Protect maker privacy |
+| **Maker Only** | Winning maker | Price | Prevent competitive intelligence leakage |
 
-- **Smart Contract**: Solidity 0.8.25 + [Fhenix CoFHE](https://cofhe-docs.fhenix.zone/) (`@fhenixprotocol/cofhe-contracts`)
-- **Testing**: Hardhat + `cofhe-hardhat-plugin` (mock FHE for local testing)
-- **Frontend**: React + Vite + ethers.js + `cofhejs` (client-side FHE encryption)
-- **Encryption**: cofhejs SDK — encrypts values client-side, generates ZK proofs, sends ciphertexts to contract
+Selective reveal turns privacy from a binary switch into a configurable policy — protocols and DAOs can tune exactly how much information enters the public domain.
 
-## Deployed Contract
+## Initial Beachhead
 
-| Network | Address |
-|---------|---------|
-| Ethereum Sepolia | `0x0CFddD9fb73648D095A3791115A89DcE4b96faB6` |
+DarkRFQ starts with the narrowest high-signal use cases where quote privacy has immediate economic value:
 
-## Project Structure
+- **DAO treasury rebalancing** — sell tokens without signaling to the market, avoiding adverse price movement
+- **Liquidation backstop bidding** — lenders collect sealed bids for distressed collateral without attracting front-runners
+- **Solver competition** — solvers compete on encrypted quotes for sensitive order flow, preventing quote sniping
 
-```
-├── contracts/
-│   └── DarkRFQ.sol              # Core RFQ contract with FHE
-├── test/
-│   └── DarkRFQ.test.ts          # 24 tests covering full lifecycle + reveal policy
-├── scripts/
-│   ├── deploy.ts                # Testnet deployment script
-│   └── e2e-local.ts             # Local E2E verification script
-├── patches/                     # Hardhat P-256 precompile workarounds
-├── frontend/
-│   └── src/
-│       ├── App.tsx              # Wallet connection + routing
-│       ├── contracts.ts         # ABI + typed helpers
-│       ├── components/
-│       │   ├── Header.tsx       # Navigation + wallet
-│       │   ├── RFQCard.tsx      # RFQ list card with privacy indicators
-│       │   ├── StatusBadge.tsx  # OPEN / CLOSED / REVEALED badge
-│       │   ├── SubmitQuoteForm.tsx  # FHE encryption + quote submission
-│       │   ├── CloseButton.tsx  # Close RFQ + trigger decryption
-│       │   └── RevealPanel.tsx  # Reveal winner / show results
-│       └── pages/
-│           ├── Home.tsx         # RFQ list
-│           ├── CreateRFQ.tsx    # Create RFQ form
-│           └── RFQDetail.tsx    # Quote / Close / Reveal UI
-└── hardhat.config.ts
-```
-
-## Quick Start
-
-### Prerequisites
-
-- Node.js >= 18
-- MetaMask browser extension (for frontend)
-
-### Run Tests
-
-```bash
-npm install
-npm test
-```
-
-All 24 tests should pass:
-
-```
-DarkRFQ
-  RFQ Creation
-    ✓ should create a buy RFQ with correct parameters
-    ✓ should create a sell RFQ
-    ✓ should create multiple RFQs with incrementing IDs
-  Quote Submission
-    ✓ should accept an encrypted quote
-    ✓ should accept multiple quotes from different makers
-    ✓ should reject duplicate quote from same maker
-    ✓ should reject quote after deadline
-    ✓ should reject quote on closed RFQ
-  Best Price Tracking
-    ✓ buy RFQ: lowest price wins
-    ✓ sell RFQ: highest price wins
-    ✓ single quote wins by default
-  Close RFQ
-    ✓ should only allow requester to close
-    ✓ should reject closing already closed RFQ
-    ✓ should reject closing RFQ with zero quotes
-    ✓ should reject closing before deadline
-  Full Lifecycle
-    ✓ full buy RFQ lifecycle: create → quote → close → reveal
-    ✓ full sell RFQ lifecycle: create → quote → close → reveal
-    ✓ should reject reveal on non-closed RFQ
-  Reveal Policy
-    ✓ PRICE_ONLY: reveals price, maker stays hidden
-    ✓ MAKER_ONLY: reveals maker, price stays hidden
-    ✓ BOTH: reveals both price and maker
-    ✓ should store revealPolicy in getRFQInfo
-    ✓ RFQCreated event includes revealPolicy
-    ✓ WinnerRevealed event includes revealPolicy
-```
-
-### Run Local E2E
-
-```bash
-# Terminal 1: Start local node
-npx hardhat node
-
-# Terminal 2: Deploy + run E2E
-npx hardhat run scripts/deploy.ts --network localhost
-npx hardhat run scripts/e2e-local.ts --network localhost
-```
-
-### Run Frontend
-
-```bash
-cd frontend
-npm install
-cp .env.example .env  # Edit contract address if needed
-npm run dev
-```
-
-Open http://localhost:5173 and connect MetaMask.
-
-### Demo Flow
-
-1. **Create RFQ** — Set label ("100 ETH"), side (BUY), amount, deadline, and reveal policy
-2. **Submit Quotes** — Switch MetaMask accounts, enter a price → encrypted via FHE and submitted
-3. **Close RFQ** — After deadline, the requester closes → triggers async decryption
-4. **Reveal** — Anyone clicks "Reveal Winner" → winning price and maker displayed
-5. **Privacy** — Losing quotes remain encrypted on-chain forever
-
-> *"On transparent chains, every quote leaks maker pricing. On DarkRFQ, makers compete without exposing their quotes during bidding. Only the winning quote is revealed."*
-
-### Deploy to Testnet
-
-```bash
-cp .env.example .env
-# Edit .env with your PRIVATE_KEY and SEPOLIA_RPC_URL
-npm run deploy:sepolia
-```
-
-## Contract API
-
-| Function | Description |
-|----------|-------------|
-| `createRFQ(label, isBuy, amount, deadline, revealPolicy)` | Create a new RFQ with reveal policy (0=Both, 1=PriceOnly, 2=MakerOnly) |
-| `submitQuote(rfqId, encryptedPrice)` | Submit an FHE-encrypted price quote |
-| `closeRFQ(rfqId)` | Close RFQ after deadline (requester only) |
-| `revealResults(rfqId)` | Reveal winning price + maker after decryption |
-| `getRFQInfo(rfqId)` | Get all plaintext RFQ metadata |
-| `getBestPriceHandle(rfqId)` | Get encrypted best price handle |
-| `getBestMakerHandle(rfqId)` | Get encrypted best maker handle |
-
-## Known Limitations
-
-- **No token settlement**: This is a quote-only protocol. Actual asset transfer would require DEX or escrow integration.
-- **Single winner**: Only one maker wins per RFQ. Tie-breaking favors the earlier submission.
-- **Mock async delay**: Local tests use `time.increase(11)` to simulate the CoFHE async decryption delay.
-- **P-256 precompile conflict**: Hardhat-EDR treats address `0x100` as a P-256 precompile in cancun mode, conflicting with MockZkVerifier. Workaround via `patch-package`.
+These are settings where transparent on-chain coordination leads to measurable economic leakage, and where confidentiality has direct ROI.
 
 ## Roadmap
 
-### Wave 2
-- Liquidation-specific RFQ flow
-- Optional keeper / reveal automation
-- More polished dashboard with RFQ history
-- Multi-RFQ management
+- **Phase 1 — Private RFQ Primitive** *(current)*: Sealed-bid mechanism with configurable reveal policy. Validates that FHE-based price discovery works end-to-end on a public blockchain.
+- **Phase 2 — Execution Modes**: Treasury rebalancing workflows and liquidation backstop auctions. Mode-specific parameters, access controls, and time-lock mechanics.
+- **Phase 3 — Solver Network**: Open participation framework for solver competition. Integration with intent-based execution protocols.
+- **Phase 4 — Settlement Rails**: Token escrow, atomic settlement, and cross-chain execution coordination.
 
-### Wave 3
-- Maker whitelists and reputation
-- Quote expiry / amendment within deadline
-- Aggregated spread statistics
-- Result analytics dashboard
+## Tech Stack
 
-### Wave 4+
-- Token escrow and settlement integration
-- Liquidation engine integration
-- Treasury execution workflows
-- Cross-chain RFQ coordination
+| Layer | Technology |
+|-------|-----------|
+| Smart Contract | Solidity 0.8.25 + [Fhenix CoFHE](https://cofhe-docs.fhenix.zone/) |
+| Testing | Hardhat + cofhe-hardhat-plugin (mock FHE) |
+| Frontend | React 19 + Vite + ethers.js v6 |
+| Encryption | cofhejs SDK (client-side FHE) |
+| Network | Ethereum Sepolia |
+
+## Quick Start
+
+```bash
+# Run tests (24 passing)
+npm install
+npm test
+
+# Run frontend
+cd frontend && npm install && npm run dev
+
+# Deploy to Sepolia
+cp .env.example .env  # Add PRIVATE_KEY and SEPOLIA_RPC_URL
+npm run deploy:sepolia
+```
+
+## Demo Flow
+
+1. **Create RFQ** — Set label, side (BUY/SELL), amount, deadline, and reveal policy
+2. **Submit Quotes** — Multiple makers encrypt prices client-side and submit sealed bids
+3. **Close RFQ** — After deadline, requester closes → triggers FHE decryption via CoFHE coprocessor
+4. **Reveal** — Call revealResults → winning outcome displayed per reveal policy
+5. **Privacy preserved** — All losing quotes remain encrypted on-chain forever
+
+## Current Scope & Next Steps
+
+Wave 1 intentionally scopes around validating the core privacy primitive independently of settlement mechanics. The contract demonstrates that confidential price discovery via FHE works end-to-end — encrypted submission, homomorphic comparison, selective reveal.
+
+Token escrow and atomic execution are the natural next integration targets for Phase 2+.
 
 ## Built For
 
 [Fhenix Privacy-by-Design dApp Buildathon](https://app.akindo.io/hackathons/BZlDa1VNbsXO7ald) — Wave 1
+
+See [docs/wave1-submission.md](docs/wave1-submission.md) for the full submission narrative.
+See [docs/architecture.md](docs/architecture.md) for technical details, contract API, and system architecture.
 
 ## License
 
