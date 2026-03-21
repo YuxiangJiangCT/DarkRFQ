@@ -38,47 +38,88 @@ export default function Home({ provider }: Props) {
     load()
   }, [provider])
 
-  if (!provider) {
-    return (
-      <div className="center-message">
-        <h2>Connect your wallet to view RFQs</h2>
-        <p className="subtitle">
-          DarkRFQ is a privacy-native RFQ protocol. Makers submit encrypted
-          quotes — only the winning quote is ever revealed.
-        </p>
-      </div>
-    )
-  }
-
-  if (loading) {
-    return <div className="center-message">Loading RFQs...</div>
-  }
-
-  if (rfqs.length === 0) {
-    return (
-      <div className="center-message">
-        <h2>No RFQs yet</h2>
-        <p className="subtitle">Create the first privacy-native RFQ.</p>
-        <Link to="/create" className="btn btn-primary" style={{ marginTop: 16 }}>
-          + New RFQ
-        </Link>
-      </div>
-    )
-  }
+  const totalQuotes = rfqs.reduce((sum, r) => sum + Number(r.quoteCount), 0)
 
   return (
-    <div className="rfq-list">
-      <div className="page-header">
-        <h1>Active RFQs</h1>
-        <Link to="/create" className="btn btn-primary">
-          + New RFQ
-        </Link>
+    <>
+      {/* Header */}
+      <div className="flex items-end justify-between mb-8 pb-6 border-b border-border">
+        <div>
+          <h1 className="font-display text-3xl font-bold text-text-primary tracking-tight mb-1">
+            Request for <span className="bg-gradient-to-r from-accent to-accent/60 bg-clip-text text-transparent">Quotes</span>
+          </h1>
+          <p className="text-sm text-text-muted max-w-md">
+            Encrypted bidding powered by Fhenix FHE &mdash; only the winning quote is revealed.
+          </p>
+        </div>
+        <div className="flex items-center gap-6">
+          {provider && (
+            <div className="flex items-center gap-4 text-xs text-text-dim">
+              <span><span className="font-mono text-text-primary">{rfqs.length}</span> RFQs</span>
+              <span><span className="font-mono text-text-primary">{totalQuotes}</span> quotes</span>
+            </div>
+          )}
+          <Link
+            to="/create"
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-accent to-accent-hover text-base text-sm font-medium no-underline transition-all duration-200 shadow-[0_0_20px_rgba(0,255,163,0.15)] hover:shadow-[0_0_30px_rgba(0,255,163,0.25)]"
+          >
+            + New RFQ
+          </Link>
+        </div>
       </div>
-      <div className="card-grid">
-        {rfqs.map((rfq) => (
-          <RFQCard key={rfq.id} rfq={rfq} />
-        ))}
+
+      {/* Content */}
+      {!provider && (
+        <div className="text-center py-20">
+          <p className="text-text-muted text-sm mb-2">Connect your wallet to view active RFQs.</p>
+          <p className="text-text-dim text-xs">Makers submit encrypted quotes. The contract selects the best price homomorphically.</p>
+        </div>
+      )}
+
+      {provider && loading && (
+        <div className="text-center py-20 text-text-muted text-sm">Loading...</div>
+      )}
+
+      {provider && !loading && rfqs.length === 0 && (
+        <div className="text-center py-20">
+          <p className="text-text-muted text-sm mb-4">No active RFQs. Create the first one.</p>
+        </div>
+      )}
+
+      {provider && !loading && rfqs.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {rfqs.map((rfq, i) => (
+            <RFQCard key={rfq.id} rfq={rfq} index={i} />
+          ))}
+        </div>
+      )}
+
+      {/* Protocol info */}
+      <div className="mt-16 pt-8 border-t border-border">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-surface border border-border rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-1 h-1 rounded-full bg-accent" />
+              <h3 className="font-display font-semibold text-accent text-sm">FHE Encryption</h3>
+            </div>
+            <p className="text-text-dim text-xs leading-relaxed">Prices encrypted client-side with Fhenix CoFHE. Comparisons happen entirely in the encrypted domain.</p>
+          </div>
+          <div className="bg-surface border border-border rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-1 h-1 rounded-full bg-accent" />
+              <h3 className="font-display font-semibold text-accent text-sm">Sealed-Bid Fairness</h3>
+            </div>
+            <p className="text-text-dim text-xs leading-relaxed">No front-running, no information leakage. Every maker competes on equal footing.</p>
+          </div>
+          <div className="bg-surface border border-border rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-1 h-1 rounded-full bg-accent" />
+              <h3 className="font-display font-semibold text-accent text-sm">Selective Reveal</h3>
+            </div>
+            <p className="text-text-dim text-xs leading-relaxed">Choose what to reveal — price only, maker only, or both. Unrevealed fields stay encrypted forever.</p>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   )
 }

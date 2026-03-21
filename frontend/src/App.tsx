@@ -68,10 +68,10 @@ function App() {
   }, [])
 
   return (
-    <div className="app">
+    <div className="max-w-[1120px] mx-auto px-5">
       <Header account={account} onConnect={connect} />
 
-      <main className="main">
+      <main className="py-8 min-h-[calc(100vh-80px)] animate-page-fade">
         <Routes>
           <Route path="/" element={<Home provider={provider} />} />
           <Route

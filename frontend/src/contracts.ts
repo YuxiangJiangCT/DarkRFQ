@@ -18,17 +18,19 @@ export const DARK_RFQ_ABI = [
   'event WinnerRevealed(uint256 indexed rfqId, address winner, uint64 price, uint8 revealPolicy)',
 ] as const
 
-export enum RFQStatus {
-  OPEN = 0,
-  CLOSED = 1,
-  REVEALED = 2,
-}
+export const RFQStatus = {
+  OPEN: 0,
+  CLOSED: 1,
+  REVEALED: 2,
+} as const
+export type RFQStatus = (typeof RFQStatus)[keyof typeof RFQStatus]
 
-export enum RevealPolicy {
-  BOTH = 0,
-  PRICE_ONLY = 1,
-  MAKER_ONLY = 2,
-}
+export const RevealPolicy = {
+  BOTH: 0,
+  PRICE_ONLY: 1,
+  MAKER_ONLY: 2,
+} as const
+export type RevealPolicy = (typeof RevealPolicy)[keyof typeof RevealPolicy]
 
 export interface RFQInfo {
   id: number

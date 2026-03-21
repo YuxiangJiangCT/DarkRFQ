@@ -20,26 +20,22 @@ export default function CloseButton({ rfqId, signer, onSuccess, onError }: Props
       await tx.wait()
       onSuccess()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to close RFQ'
-      onError(message)
+      onError(err instanceof Error ? err.message : 'Failed to close RFQ')
     } finally {
       setClosing(false)
     }
   }
 
   return (
-    <div className="action-section">
-      <h3>Deadline Passed</h3>
-      <p>
-        The quoting period has ended. Close this RFQ to trigger decryption of
-        the winning quote.
-      </p>
+    <div>
+      <h3 className="text-xs font-medium text-text-dim uppercase tracking-wide mb-3">Deadline Passed</h3>
+      <p className="text-xs text-text-dim mb-3">Close this RFQ to trigger decryption of the winning quote.</p>
       <button
         onClick={handleClose}
-        className="btn btn-primary btn-full"
+        className="w-full py-2.5 rounded-lg bg-gradient-to-r from-accent to-accent-hover text-base text-sm font-medium cursor-pointer transition-all duration-200 shadow-[0_0_20px_rgba(0,255,163,0.15)] hover:shadow-[0_0_30px_rgba(0,255,163,0.25)] border-none disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed"
         disabled={closing}
       >
-        {closing ? 'Closing & Triggering Decryption...' : 'Close RFQ & Start Decryption'}
+        {closing ? 'Closing...' : 'Close RFQ & Start Decryption'}
       </button>
     </div>
   )

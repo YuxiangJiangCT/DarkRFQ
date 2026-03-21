@@ -40,7 +40,6 @@ export default function RFQDetail({ provider, signer, account }: Props) {
       const result = await contract.getRFQInfo(rfqId)
       const info = parseRFQInfo(rfqId, result)
       setRfq(info)
-
       if (account) {
         const quoted = await contract.hasQuoted(rfqId, account)
         setAlreadyQuoted(quoted)
@@ -52,11 +51,8 @@ export default function RFQDetail({ provider, signer, account }: Props) {
     }
   }, [provider, rfqId, account])
 
-  useEffect(() => {
-    loadRFQ()
-  }, [loadRFQ])
+  useEffect(() => { loadRFQ() }, [loadRFQ])
 
-  // Auto-refresh for OPEN RFQs
   useEffect(() => {
     if (!rfq || rfq.status !== RFQStatus.OPEN) return
     const interval = setInterval(loadRFQ, 10000)
@@ -64,166 +60,130 @@ export default function RFQDetail({ provider, signer, account }: Props) {
   }, [rfq, loadRFQ])
 
   if (!provider) {
-    return (
-      <div className="center-message">
-        <h2>Connect your wallet to view this RFQ</h2>
-      </div>
-    )
+    return <div className="text-center py-20 text-text-muted text-sm">Connect your wallet to view this RFQ.</div>
   }
-
   if (loading) {
-    return <div className="center-message">Loading RFQ #{rfqId}...</div>
+    return <div className="text-center py-20 text-text-muted text-sm">Loading...</div>
   }
-
   if (!rfq) {
-    return <div className="center-message">RFQ not found</div>
+    return <div className="text-center py-20 text-text-muted text-sm">RFQ not found.</div>
   }
 
   const isRequester = account?.toLowerCase() === rfq.requester.toLowerCase()
   const deadlinePassed = Number(rfq.deadline) <= Math.floor(Date.now() / 1000)
 
   return (
-    <div className="detail-page">
-      <Link to="/" className="back-link">
-        &larr; Back to RFQs
+    <div>
+      <Link to="/" className="text-xs text-text-dim hover:text-text-muted transition-all duration-150 hover:-translate-x-0.5 mb-4 inline-block no-underline">
+        &larr; Back
       </Link>
 
-      <div className="detail-header">
-        <h1>{rfq.label}</h1>
-        <div className="detail-badges">
-          <span className={`badge badge-${rfq.isBuy ? 'buy' : 'sell'}`}>
-            {rfq.isBuy ? 'BUY' : 'SELL'}
-          </span>
-          <StatusBadge status={rfq.status} />
-        </div>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <h1 className="font-display text-xl font-bold text-text-primary tracking-tight">{rfq.label}</h1>
+        <span className={`font-mono text-xs font-medium ${rfq.isBuy ? 'text-buy' : 'text-sell'}`}>
+          {rfq.isBuy ? 'BUY' : 'SELL'}
+        </span>
+        <StatusBadge status={rfq.status} />
       </div>
 
-      <div className="detail-grid">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left: Info */}
-        <div className="info-card">
-          <h3>Details</h3>
-          <dl>
-            <dt>Requester</dt>
-            <dd>
-              {shortenAddress(rfq.requester)} {isRequester && '(you)'}
-            </dd>
-            <dt>Amount</dt>
-            <dd>{rfq.amount.toString()}</dd>
-            <dt>Side</dt>
-            <dd>{rfq.isBuy ? 'Buy (lowest wins)' : 'Sell (highest wins)'}</dd>
-            <dt>Deadline</dt>
-            <dd>{formatDeadline(rfq.deadline)}</dd>
-            <dt>Time Remaining</dt>
-            <dd>{timeRemaining(rfq.deadline)}</dd>
-            <dt>Quotes</dt>
-            <dd>{rfq.quoteCount.toString()}</dd>
-            <dt>Reveal Policy</dt>
-            <dd>{revealPolicyLabel(rfq.revealPolicy)}</dd>
+        <div className="bg-surface border border-border rounded-2xl p-6">
+          <h3 className="text-xs font-medium text-text-dim uppercase tracking-wide mb-4">Details</h3>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-sm">
+            <dt className="text-text-dim">Requester</dt>
+            <dd className="text-text-primary text-right font-mono text-xs">{shortenAddress(rfq.requester)} {isRequester && '(you)'}</dd>
+            <dt className="text-text-dim">Amount</dt>
+            <dd className="text-text-primary text-right">{rfq.amount.toString()}</dd>
+            <dt className="text-text-dim">Side</dt>
+            <dd className="text-text-primary text-right">{rfq.isBuy ? 'Buy (lowest wins)' : 'Sell (highest wins)'}</dd>
+            <dt className="text-text-dim">Deadline</dt>
+            <dd className="text-text-primary text-right text-xs">{formatDeadline(rfq.deadline)}</dd>
+            <dt className="text-text-dim">Remaining</dt>
+            <dd className="text-text-primary text-right">{timeRemaining(rfq.deadline)}</dd>
+            <dt className="text-text-dim">Quotes</dt>
+            <dd className="text-text-primary text-right">{rfq.quoteCount.toString()}</dd>
+            <dt className="text-text-dim">Reveal</dt>
+            <dd className="text-text-primary text-right">{revealPolicyLabel(rfq.revealPolicy)}</dd>
           </dl>
 
-          {/* Privacy indicator */}
+          {/* Encryption state */}
           {rfq.status !== RFQStatus.REVEALED && (
-            <div className="encrypted-state">
-              <div className="encrypted-row">
-                <span className="encrypted-label">Best Quote</span>
+            <div className="mt-5 pt-4 border-t border-border space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-text-dim">Best price</span>
                 {rfq.revealPolicy === RevealPolicy.MAKER_ONLY ? (
-                  <span className="encrypted-badge always-hidden">ALWAYS HIDDEN</span>
+                  <span className="text-[10px] font-mono text-text-dim bg-surface-hover px-2.5 py-0.5 rounded-full">not revealed</span>
                 ) : (
-                  <span className="encrypted-badge">&#x1f512; ENCRYPTED</span>
+                  <span className="inline-block bg-gradient-to-r from-accent/20 via-accent/40 to-accent/20 bg-[length:200%_100%] animate-shimmer text-[10px] font-mono text-accent px-2.5 py-0.5 rounded-full">[encrypted]</span>
                 )}
               </div>
-              <div className="encrypted-row">
-                <span className="encrypted-label">Best Maker</span>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-text-dim">Best maker</span>
                 {rfq.revealPolicy === RevealPolicy.PRICE_ONLY ? (
-                  <span className="encrypted-badge always-hidden">ALWAYS HIDDEN</span>
+                  <span className="text-[10px] font-mono text-text-dim bg-surface-hover px-2.5 py-0.5 rounded-full">not revealed</span>
                 ) : (
-                  <span className="encrypted-badge">&#x1f512; ENCRYPTED</span>
+                  <span className="inline-block bg-gradient-to-r from-accent/20 via-accent/40 to-accent/20 bg-[length:200%_100%] animate-shimmer text-[10px] font-mono text-accent px-2.5 py-0.5 rounded-full">[encrypted]</span>
                 )}
               </div>
-              <p className="encrypted-note">
-                {rfq.revealPolicy === RevealPolicy.BOTH &&
-                  'Best quote remains encrypted until reveal. No one can see any price during the quoting period.'}
-                {rfq.revealPolicy === RevealPolicy.PRICE_ONLY &&
-                  'Only the winning price will be revealed. The maker identity will remain permanently encrypted.'}
-                {rfq.revealPolicy === RevealPolicy.MAKER_ONLY &&
-                  'Only the winning maker will be revealed. The winning price will remain permanently encrypted.'}
+              <p className="text-[11px] text-text-dim leading-relaxed pt-1">
+                {rfq.revealPolicy === RevealPolicy.BOTH && 'All prices are encrypted on-chain. No one sees any price until the winner is revealed.'}
+                {rfq.revealPolicy === RevealPolicy.PRICE_ONLY && 'Only the winning price will be revealed. Maker identity stays permanently encrypted.'}
+                {rfq.revealPolicy === RevealPolicy.MAKER_ONLY && 'Only the winning maker will be revealed. Price stays permanently encrypted.'}
               </p>
             </div>
           )}
         </div>
 
         {/* Right: Actions */}
-        <div className="action-card">
-          {/* OPEN + before deadline: Quote form */}
+        <div className="bg-surface border border-border rounded-2xl p-6">
           {rfq.status === RFQStatus.OPEN && !deadlinePassed && (
-            <div className="action-section">
-              <h3>Submit Quote</h3>
+            <div>
+              <h3 className="text-xs font-medium text-text-dim uppercase tracking-wide mb-4">Submit Quote</h3>
               {alreadyQuoted ? (
-                <div className="info-msg">
-                  <span className="lock-icon">&#x2713;</span> You have already
-                  submitted an encrypted quote for this RFQ.
-                </div>
+                <p className="text-sm text-accent">You have already submitted an encrypted quote.</p>
               ) : !account || !signer ? (
-                <div className="info-msg">
-                  Connect wallet to submit a quote.
-                </div>
+                <p className="text-sm text-text-muted">Connect wallet to submit a quote.</p>
               ) : (
                 <SubmitQuoteForm
                   rfqId={rfqId}
                   provider={provider}
                   signer={signer}
-                  onSuccess={() => {
-                    setSuccess('Quote submitted successfully! Your price is encrypted on-chain.')
-                    setAlreadyQuoted(true)
-                    loadRFQ()
-                  }}
+                  onSuccess={() => { setSuccess('Quote submitted. Your price is encrypted on-chain.'); setAlreadyQuoted(true); loadRFQ() }}
                   onError={(msg) => setError(msg)}
                 />
               )}
             </div>
           )}
 
-          {/* OPEN + deadline passed: Close button for requester */}
           {rfq.status === RFQStatus.OPEN && deadlinePassed && signer && (
-            <>
-              {isRequester ? (
-                <CloseButton
-                  rfqId={rfqId}
-                  signer={signer}
-                  onSuccess={() => {
-                    setSuccess('RFQ closed! Decryption triggered via CoFHE coprocessor.')
-                    loadRFQ()
-                  }}
-                  onError={(msg) => setError(msg)}
-                />
-              ) : (
-                <div className="action-section">
-                  <h3>Deadline Passed</h3>
-                  <div className="info-msg">
-                    Waiting for the requester to close this RFQ.
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* CLOSED or REVEALED: Reveal panel */}
-          {(rfq.status === RFQStatus.CLOSED ||
-            rfq.status === RFQStatus.REVEALED) &&
-            signer && (
-              <RevealPanel
-                rfq={rfq}
+            isRequester ? (
+              <CloseButton
+                rfqId={rfqId}
                 signer={signer}
-                onSuccess={() => {
-                  setSuccess('Winner revealed!')
-                  loadRFQ()
-                }}
+                onSuccess={() => { setSuccess('RFQ closed. Decryption triggered.'); loadRFQ() }}
                 onError={(msg) => setError(msg)}
               />
-            )}
+            ) : (
+              <div>
+                <h3 className="text-xs font-medium text-text-dim uppercase tracking-wide mb-4">Deadline Passed</h3>
+                <p className="text-sm text-text-muted">Waiting for the requester to close this RFQ.</p>
+              </div>
+            )
+          )}
 
-          {error && <div className="error-msg">{error}</div>}
-          {success && <div className="success-msg">{success}</div>}
+          {(rfq.status === RFQStatus.CLOSED || rfq.status === RFQStatus.REVEALED) && signer && (
+            <RevealPanel
+              rfq={rfq}
+              signer={signer}
+              onSuccess={() => { setSuccess('Winner revealed!'); loadRFQ() }}
+              onError={(msg) => setError(msg)}
+            />
+          )}
+
+          {error && <div className="mt-3 p-2.5 rounded-lg bg-sell/8 border border-sell/20 text-xs text-sell">{error}</div>}
+          {success && <div className="mt-3 p-2.5 rounded-lg bg-buy/8 border border-buy/20 text-xs text-buy">{success}</div>}
         </div>
       </div>
     </div>
