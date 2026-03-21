@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { ethers } from 'ethers'
 import { getContract, shortenAddress, RevealPolicy, type RFQInfo } from '../contracts'
+import { useToast } from '../contexts/ToastContext'
+import { useTxProgress } from '../hooks/useTxProgress'
+import TxProgressModal from './TxProgressModal'
+import CopyButton from './CopyButton'
+import Spinner from './Spinner'
 
 interface Props {
   rfq: RFQInfo
@@ -33,16 +38,27 @@ function useCountUp(target: number, duration = 1000) {
 
 export default function RevealPanel({ rfq, signer, onSuccess, onError }: Props) {
   const [revealing, setRevealing] = useState(false)
+  const { addToast } = useToast()
+  const tx = useTxProgress()
 
   const handleReveal = async () => {
+    if (revealing) return
+    tx.start(['Requesting reveal...', 'Confirming...'])
+
     try {
       setRevealing(true)
       const contract = getContract(signer)
-      const tx = await contract.revealResults(rfq.id)
-      await tx.wait()
+      const txn = await contract.revealResults(rfq.id)
+      tx.advance()
+      await txn.wait()
+      tx.complete(() => {
+        addToast('success', 'Winner revealed!')
+      })
       onSuccess()
     } catch (err: unknown) {
-      onError(err instanceof Error ? err.message : 'Decryption not ready yet. Try again in a few seconds.')
+      const msg = err instanceof Error ? err.message : 'Decryption not ready yet. Try again in a few seconds.'
+      tx.fail(msg)
+      onError(msg)
     } finally {
       setRevealing(false)
     }
@@ -67,9 +83,12 @@ export default function RevealPanel({ rfq, signer, onSuccess, onError }: Props) 
             </div>
           )}
           {rfq.revealPolicy !== RevealPolicy.PRICE_ONLY && (
-            <div className="flex justify-between items-baseline">
+            <div className="flex justify-between items-center">
               <span className="text-xs text-text-dim">Winning maker</span>
-              <span className="font-mono text-sm text-accent">{shortenAddress(rfq.revealedWinningMaker)}</span>
+              <span className="inline-flex items-center gap-1.5 font-mono text-sm text-accent">
+                {shortenAddress(rfq.revealedWinningMaker)}
+                <CopyButton text={rfq.revealedWinningMaker} />
+              </span>
             </div>
           )}
         </div>
@@ -85,20 +104,28 @@ export default function RevealPanel({ rfq, signer, onSuccess, onError }: Props) 
   }
 
   return (
-    <div>
-      <h3 className="text-xs font-medium text-text-dim uppercase tracking-wide mb-4">Reveal</h3>
-      <div className="flex items-center gap-2 mb-3 text-xs text-warning">
-        <span className="w-1.5 h-1.5 rounded-full bg-warning" style={{ animation: 'pulse-dot 1.5s ease-in-out infinite' }} />
-        Decrypting via CoFHE coprocessor...
+    <>
+      <div>
+        <h3 className="text-xs font-medium text-text-dim uppercase tracking-wide mb-4">Reveal</h3>
+        <div className="flex items-center gap-2 mb-3 text-xs text-warning">
+          <span className="w-1.5 h-1.5 rounded-full bg-warning" style={{ animation: 'pulse-dot 1.5s ease-in-out infinite' }} />
+          Decrypting via CoFHE coprocessor...
+        </div>
+        <p className="text-xs text-text-dim mb-3">Click below to check if results are ready.</p>
+        <button
+          onClick={handleReveal}
+          className="w-full py-2.5 rounded-lg bg-gradient-to-r from-accent to-accent-hover text-[#08090D] text-sm font-semibold cursor-pointer transition-all duration-200 shadow-[0_0_20px_rgba(0,255,163,0.15)] hover:shadow-[0_0_30px_rgba(0,255,163,0.25)] border-none disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+          disabled={revealing}
+        >
+          {revealing ? <><Spinner /> Checking...</> : 'Reveal Winner'}
+        </button>
       </div>
-      <p className="text-xs text-text-dim mb-3">Click below to check if results are ready.</p>
-      <button
-        onClick={handleReveal}
-        className="w-full py-2.5 rounded-lg bg-gradient-to-r from-accent to-accent-hover text-base text-sm font-medium cursor-pointer transition-all duration-200 shadow-[0_0_20px_rgba(0,255,163,0.15)] hover:shadow-[0_0_30px_rgba(0,255,163,0.25)] border-none disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed"
-        disabled={revealing}
-      >
-        {revealing ? 'Checking...' : 'Reveal Winner'}
-      </button>
-    </div>
+      <TxProgressModal
+        visible={tx.visible}
+        steps={tx.steps}
+        error={tx.error}
+        onDismiss={tx.dismiss}
+      />
+    </>
   )
 }

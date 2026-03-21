@@ -5,33 +5,48 @@ import {
   getContract,
   parseRFQInfo,
   formatDeadline,
-  timeRemaining,
   shortenAddress,
   revealPolicyLabel,
   RFQStatus,
   RevealPolicy,
   type RFQInfo,
 } from '../contracts'
+import { useToast } from '../contexts/ToastContext'
+import { useCountdown } from '../hooks/useCountdown'
 import StatusBadge from '../components/StatusBadge'
 import SubmitQuoteForm from '../components/SubmitQuoteForm'
 import CloseButton from '../components/CloseButton'
 import RevealPanel from '../components/RevealPanel'
+import CopyButton from '../components/CopyButton'
+import { SkeletonDetail } from '../components/Skeleton'
 
 interface Props {
   provider: ethers.BrowserProvider | null
   signer: ethers.Signer | null
   account: string | null
+  isCorrectNetwork: boolean
 }
 
-export default function RFQDetail({ provider, signer, account }: Props) {
+function CountdownDisplay({ deadline }: { deadline: bigint }) {
+  const { display, urgent } = useCountdown(deadline)
+  return (
+    <span
+      className={urgent ? 'text-sell font-mono' : ''}
+      style={urgent ? { animation: 'urgent-flash 1s ease-in-out infinite' } : undefined}
+    >
+      {display}
+    </span>
+  )
+}
+
+export default function RFQDetail({ provider, signer, account, isCorrectNetwork }: Props) {
   const { id } = useParams<{ id: string }>()
   const rfqId = Number(id)
+  const { addToast } = useToast()
 
   const [rfq, setRfq] = useState<RFQInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [alreadyQuoted, setAlreadyQuoted] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   const loadRFQ = useCallback(async () => {
     if (!provider) return
@@ -63,7 +78,7 @@ export default function RFQDetail({ provider, signer, account }: Props) {
     return <div className="text-center py-20 text-text-muted text-sm">Connect your wallet to view this RFQ.</div>
   }
   if (loading) {
-    return <div className="text-center py-20 text-text-muted text-sm">Loading...</div>
+    return <SkeletonDetail />
   }
   if (!rfq) {
     return <div className="text-center py-20 text-text-muted text-sm">RFQ not found.</div>
@@ -93,7 +108,10 @@ export default function RFQDetail({ provider, signer, account }: Props) {
           <h3 className="text-xs font-medium text-text-dim uppercase tracking-wide mb-4">Details</h3>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-sm">
             <dt className="text-text-dim">Requester</dt>
-            <dd className="text-text-primary text-right font-mono text-xs">{shortenAddress(rfq.requester)} {isRequester && '(you)'}</dd>
+            <dd className="text-text-primary text-right font-mono text-xs inline-flex items-center justify-end gap-1.5">
+              {shortenAddress(rfq.requester)} {isRequester && '(you)'}
+              <CopyButton text={rfq.requester} />
+            </dd>
             <dt className="text-text-dim">Amount</dt>
             <dd className="text-text-primary text-right">{rfq.amount.toString()}</dd>
             <dt className="text-text-dim">Side</dt>
@@ -101,7 +119,7 @@ export default function RFQDetail({ provider, signer, account }: Props) {
             <dt className="text-text-dim">Deadline</dt>
             <dd className="text-text-primary text-right text-xs">{formatDeadline(rfq.deadline)}</dd>
             <dt className="text-text-dim">Remaining</dt>
-            <dd className="text-text-primary text-right">{timeRemaining(rfq.deadline)}</dd>
+            <dd className="text-text-primary text-right"><CountdownDisplay deadline={rfq.deadline} /></dd>
             <dt className="text-text-dim">Quotes</dt>
             <dd className="text-text-primary text-right">{rfq.quoteCount.toString()}</dd>
             <dt className="text-text-dim">Reveal</dt>
@@ -145,13 +163,15 @@ export default function RFQDetail({ provider, signer, account }: Props) {
                 <p className="text-sm text-accent">You have already submitted an encrypted quote.</p>
               ) : !account || !signer ? (
                 <p className="text-sm text-text-muted">Connect wallet to submit a quote.</p>
+              ) : !isCorrectNetwork ? (
+                <p className="text-sm text-sell">Switch to Sepolia to submit a quote.</p>
               ) : (
                 <SubmitQuoteForm
                   rfqId={rfqId}
                   provider={provider}
                   signer={signer}
-                  onSuccess={() => { setSuccess('Quote submitted. Your price is encrypted on-chain.'); setAlreadyQuoted(true); loadRFQ() }}
-                  onError={(msg) => setError(msg)}
+                  onSuccess={() => { addToast('success', 'Encrypted quote submitted'); setAlreadyQuoted(true); loadRFQ() }}
+                  onError={(msg) => addToast('error', msg)}
                 />
               )}
             </div>
@@ -162,8 +182,8 @@ export default function RFQDetail({ provider, signer, account }: Props) {
               <CloseButton
                 rfqId={rfqId}
                 signer={signer}
-                onSuccess={() => { setSuccess('RFQ closed. Decryption triggered.'); loadRFQ() }}
-                onError={(msg) => setError(msg)}
+                onSuccess={() => { loadRFQ() }}
+                onError={(msg) => addToast('error', msg)}
               />
             ) : (
               <div>
@@ -177,13 +197,10 @@ export default function RFQDetail({ provider, signer, account }: Props) {
             <RevealPanel
               rfq={rfq}
               signer={signer}
-              onSuccess={() => { setSuccess('Winner revealed!'); loadRFQ() }}
-              onError={(msg) => setError(msg)}
+              onSuccess={() => { loadRFQ() }}
+              onError={(msg) => addToast('error', msg)}
             />
           )}
-
-          {error && <div className="mt-3 p-2.5 rounded-lg bg-sell/8 border border-sell/20 text-xs text-sell">{error}</div>}
-          {success && <div className="mt-3 p-2.5 rounded-lg bg-buy/8 border border-buy/20 text-xs text-buy">{success}</div>}
         </div>
       </div>
     </div>

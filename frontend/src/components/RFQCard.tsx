@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { RFQStatus, RevealPolicy, revealPolicyLabel, timeRemaining, type RFQInfo } from '../contracts'
+import { RFQStatus, RevealPolicy, revealPolicyLabel, type RFQInfo } from '../contracts'
+import { useCountdown } from '../hooks/useCountdown'
 import StatusBadge from './StatusBadge'
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 export default function RFQCard({ rfq, index = 0 }: Props) {
   const isOpen = rfq.status === RFQStatus.OPEN
   const isRevealed = rfq.status === RFQStatus.REVEALED
+  const countdown = useCountdown(rfq.deadline)
 
   return (
     <Link
@@ -35,8 +37,12 @@ export default function RFQCard({ rfq, index = 0 }: Props) {
         {rfq.revealPolicy !== RevealPolicy.BOTH && (
           <span className="text-text-dim text-xs">{revealPolicyLabel(rfq.revealPolicy)}</span>
         )}
-        <span className="ml-auto text-text-dim text-xs">
-          {isOpen ? timeRemaining(rfq.deadline) : 'ended'}
+        <span className={`ml-auto text-xs font-mono ${
+          isOpen
+            ? countdown.urgent ? 'text-sell' : countdown.expired ? 'text-sell' : 'text-text-dim'
+            : 'text-text-dim'
+        }`} style={isOpen && countdown.urgent ? { animation: 'urgent-flash 1s ease-in-out infinite' } : undefined}>
+          {isOpen ? countdown.display : 'ended'}
         </span>
       </div>
 
