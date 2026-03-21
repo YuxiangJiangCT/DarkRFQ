@@ -7,7 +7,9 @@ import {
   formatDeadline,
   timeRemaining,
   shortenAddress,
+  revealPolicyLabel,
   RFQStatus,
+  RevealPolicy,
   type RFQInfo,
 } from '../contracts'
 import StatusBadge from '../components/StatusBadge'
@@ -115,6 +117,8 @@ export default function RFQDetail({ provider, signer, account }: Props) {
             <dd>{timeRemaining(rfq.deadline)}</dd>
             <dt>Quotes</dt>
             <dd>{rfq.quoteCount.toString()}</dd>
+            <dt>Reveal Policy</dt>
+            <dd>{revealPolicyLabel(rfq.revealPolicy)}</dd>
           </dl>
 
           {/* Privacy indicator */}
@@ -122,19 +126,27 @@ export default function RFQDetail({ provider, signer, account }: Props) {
             <div className="encrypted-state">
               <div className="encrypted-row">
                 <span className="encrypted-label">Best Quote</span>
-                <span className="encrypted-badge">
-                  &#x1f512; ENCRYPTED
-                </span>
+                {rfq.revealPolicy === RevealPolicy.MAKER_ONLY ? (
+                  <span className="encrypted-badge always-hidden">ALWAYS HIDDEN</span>
+                ) : (
+                  <span className="encrypted-badge">&#x1f512; ENCRYPTED</span>
+                )}
               </div>
               <div className="encrypted-row">
                 <span className="encrypted-label">Best Maker</span>
-                <span className="encrypted-badge">
-                  &#x1f512; ENCRYPTED
-                </span>
+                {rfq.revealPolicy === RevealPolicy.PRICE_ONLY ? (
+                  <span className="encrypted-badge always-hidden">ALWAYS HIDDEN</span>
+                ) : (
+                  <span className="encrypted-badge">&#x1f512; ENCRYPTED</span>
+                )}
               </div>
               <p className="encrypted-note">
-                Best quote remains encrypted until reveal. No one can see any
-                price during the quoting period.
+                {rfq.revealPolicy === RevealPolicy.BOTH &&
+                  'Best quote remains encrypted until reveal. No one can see any price during the quoting period.'}
+                {rfq.revealPolicy === RevealPolicy.PRICE_ONLY &&
+                  'Only the winning price will be revealed. The maker identity will remain permanently encrypted.'}
+                {rfq.revealPolicy === RevealPolicy.MAKER_ONLY &&
+                  'Only the winning maker will be revealed. The winning price will remain permanently encrypted.'}
               </p>
             </div>
           )}

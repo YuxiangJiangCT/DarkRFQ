@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { RFQStatus, timeRemaining, type RFQInfo } from '../contracts'
+import { RFQStatus, RevealPolicy, revealPolicyLabel, timeRemaining, type RFQInfo } from '../contracts'
 import StatusBadge from './StatusBadge'
 
 interface Props {
@@ -14,6 +14,11 @@ export default function RFQCard({ rfq }: Props) {
           {rfq.isBuy ? 'BUY' : 'SELL'}
         </span>
         <StatusBadge status={rfq.status} />
+        {rfq.revealPolicy !== RevealPolicy.BOTH && (
+          <span className="badge badge-reveal-policy">
+            {revealPolicyLabel(rfq.revealPolicy)}
+          </span>
+        )}
       </div>
       <h3 className="card-label">{rfq.label}</h3>
       <div className="card-details">
@@ -47,8 +52,13 @@ export default function RFQCard({ rfq }: Props) {
       {/* Winner for REVEALED */}
       {rfq.status === RFQStatus.REVEALED && (
         <div className="card-winner">
-          Winner: {rfq.revealedWinningPrice.toString()} by{' '}
-          {rfq.revealedWinningMaker.slice(0, 8)}...
+          {rfq.revealPolicy !== RevealPolicy.MAKER_ONLY && (
+            <>Price: {rfq.revealedWinningPrice.toString()}</>
+          )}
+          {rfq.revealPolicy === RevealPolicy.BOTH && ' by '}
+          {rfq.revealPolicy !== RevealPolicy.PRICE_ONLY && (
+            <>{rfq.revealedWinningMaker.slice(0, 8)}...</>
+          )}
         </div>
       )}
     </Link>

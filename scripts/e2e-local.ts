@@ -10,16 +10,16 @@ import { cofhejs, Encryptable } from 'cofhejs/node'
 const CONTRACT_ADDRESS = '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9'
 
 const ABI = [
-  'function createRFQ(string label, bool isBuy, uint256 amount, uint256 deadline) external returns (uint256)',
+  'function createRFQ(string label, bool isBuy, uint256 amount, uint256 deadline, uint8 revealPolicy) external returns (uint256)',
   'function submitQuote(uint256 rfqId, tuple(uint256 ctHash, uint8 securityZone, uint8 utype, bytes signature) encryptedPrice) external',
   'function closeRFQ(uint256 rfqId) external',
   'function revealResults(uint256 rfqId) external',
-  'function getRFQInfo(uint256 rfqId) external view returns (address, string, bool, uint256, uint256, uint8, uint256, bool, bool, uint64, address)',
+  'function getRFQInfo(uint256 rfqId) external view returns (address, string, bool, uint256, uint256, uint8, uint256, uint8, bool, bool, uint64, address)',
   'function nextRfqId() external view returns (uint256)',
-  'event RFQCreated(uint256 indexed rfqId, address indexed requester, string label, bool isBuy, uint256 amount, uint256 deadline)',
+  'event RFQCreated(uint256 indexed rfqId, address indexed requester, string label, bool isBuy, uint256 amount, uint256 deadline, uint8 revealPolicy)',
   'event QuoteSubmitted(uint256 indexed rfqId, address indexed maker)',
   'event RFQClosed(uint256 indexed rfqId)',
-  'event WinnerRevealed(uint256 indexed rfqId, address winner, uint64 price)',
+  'event WinnerRevealed(uint256 indexed rfqId, address winner, uint64 price, uint8 revealPolicy)',
 ]
 
 async function main() {
@@ -32,7 +32,7 @@ async function main() {
   const now = Math.floor(Date.now() / 1000)
   const deadline = now + 120 // 2 minutes from now
   console.log('1. Creating buy RFQ for "100 ETH"...')
-  const tx1 = await contract.createRFQ('100 ETH', true, 100, deadline)
+  const tx1 = await contract.createRFQ('100 ETH', true, 100, deadline, 0)
   const receipt1 = await tx1.wait()
   const rfqId = 0
   console.log(`   RFQ #${rfqId} created. TX: ${receipt1.hash}`)
@@ -107,12 +107,13 @@ async function main() {
 
   const info4 = await contract.getRFQInfo(rfqId)
   console.log(`   Status: ${['OPEN', 'CLOSED', 'REVEALED'][info4[5]]}`)
-  console.log(`   Winning Price: ${info4[9]}`)
-  console.log(`   Winning Maker: ${info4[10]}`)
+  console.log(`   Reveal Policy: ${['BOTH', 'PRICE_ONLY', 'MAKER_ONLY'][info4[7]]}`)
+  console.log(`   Winning Price: ${info4[10]}`)
+  console.log(`   Winning Maker: ${info4[11]}`)
   console.log(`   Expected Winner: Maker2 (${maker2.address}) at price 1000`)
 
   // Verify
-  if (Number(info4[5]) === 2 && Number(info4[9]) === 1000 && info4[10] === maker2.address) {
+  if (Number(info4[5]) === 2 && Number(info4[10]) === 1000 && info4[11] === maker2.address) {
     console.log('\n=== E2E PASSED — Full lifecycle verified ===\n')
   } else {
     console.error('\n=== E2E FAILED ===\n')

@@ -42,10 +42,10 @@ describe('DarkRFQ', function () {
       const { darkRFQ, requester, deadline } = await loadFixture(deployFixture)
 
       await expect(
-        darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+        darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
       )
         .to.emit(darkRFQ, 'RFQCreated')
-        .withArgs(0, requester.address, '100 ETH', true, 100, deadline)
+        .withArgs(0, requester.address, '100 ETH', true, 100, deadline, 0)
 
       const info = await darkRFQ.getRFQInfo(0)
       expect(info.requester).to.equal(requester.address)
@@ -60,7 +60,7 @@ describe('DarkRFQ', function () {
     it('should create a sell RFQ', async function () {
       const { darkRFQ, deadline } = await loadFixture(deployFixture)
 
-      await darkRFQ.createRFQ('500 USDC', false, 500, deadline)
+      await darkRFQ.createRFQ('500 USDC', false, 500, deadline, 0)
       const info = await darkRFQ.getRFQInfo(0)
       expect(info.isBuy).to.equal(false)
     })
@@ -68,9 +68,9 @@ describe('DarkRFQ', function () {
     it('should create multiple RFQs with incrementing IDs', async function () {
       const { darkRFQ, deadline } = await loadFixture(deployFixture)
 
-      await darkRFQ.createRFQ('RFQ 0', true, 10, deadline)
-      await darkRFQ.createRFQ('RFQ 1', false, 20, deadline)
-      await darkRFQ.createRFQ('RFQ 2', true, 30, deadline)
+      await darkRFQ.createRFQ('RFQ 0', true, 10, deadline, 0)
+      await darkRFQ.createRFQ('RFQ 1', false, 20, deadline, 0)
+      await darkRFQ.createRFQ('RFQ 2', true, 30, deadline, 0)
 
       expect(await darkRFQ.nextRfqId()).to.equal(3)
 
@@ -90,7 +90,7 @@ describe('DarkRFQ', function () {
 
     it('should accept an encrypted quote', async function () {
       const { darkRFQ, maker1, deadline } = await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       await initSigner(maker1)
       const enc = await encryptPrice(1000n)
@@ -106,7 +106,7 @@ describe('DarkRFQ', function () {
     it('should accept multiple quotes from different makers', async function () {
       const { darkRFQ, maker1, maker2, maker3, deadline } =
         await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       await initSigner(maker1)
       await darkRFQ.connect(maker1).submitQuote(0, await encryptPrice(1500n))
@@ -123,7 +123,7 @@ describe('DarkRFQ', function () {
 
     it('should reject duplicate quote from same maker', async function () {
       const { darkRFQ, maker1, deadline } = await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       await initSigner(maker1)
       const enc = await encryptPrice(1000n)
@@ -137,7 +137,7 @@ describe('DarkRFQ', function () {
 
     it('should reject quote after deadline', async function () {
       const { darkRFQ, maker1, deadline } = await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       // Advance past deadline
       await time.increaseTo(deadline + 1)
@@ -152,7 +152,7 @@ describe('DarkRFQ', function () {
     it('should reject quote on closed RFQ', async function () {
       const { darkRFQ, requester, maker1, maker2, deadline } =
         await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       // Submit one quote then close
       await initSigner(maker1)
@@ -176,7 +176,7 @@ describe('DarkRFQ', function () {
     it('buy RFQ: lowest price wins', async function () {
       const { darkRFQ, requester, maker1, maker2, maker3, deadline } =
         await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       // Submit prices: 1500, 1000, 1200 — 1000 should win
       await initSigner(maker1)
@@ -196,7 +196,7 @@ describe('DarkRFQ', function () {
     it('sell RFQ: highest price wins', async function () {
       const { darkRFQ, requester, maker1, maker2, maker3, deadline } =
         await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('500 USDC', false, 500, deadline)
+      await darkRFQ.createRFQ('500 USDC', false, 500, deadline, 0)
 
       // Submit prices: 800, 1200, 1000 — 1200 should win
       await initSigner(maker1)
@@ -214,7 +214,7 @@ describe('DarkRFQ', function () {
 
     it('single quote wins by default', async function () {
       const { darkRFQ, maker1, deadline } = await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       await initSigner(maker1)
       await darkRFQ.connect(maker1).submitQuote(0, await encryptPrice(2000n))
@@ -231,7 +231,7 @@ describe('DarkRFQ', function () {
 
     it('should only allow requester to close', async function () {
       const { darkRFQ, maker1, deadline } = await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       await initSigner(maker1)
       await darkRFQ.connect(maker1).submitQuote(0, await encryptPrice(1000n))
@@ -245,7 +245,7 @@ describe('DarkRFQ', function () {
     it('should reject closing already closed RFQ', async function () {
       const { darkRFQ, requester, maker1, deadline } =
         await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       await initSigner(maker1)
       await darkRFQ.connect(maker1).submitQuote(0, await encryptPrice(1000n))
@@ -259,7 +259,7 @@ describe('DarkRFQ', function () {
 
     it('should reject closing RFQ with zero quotes', async function () {
       const { darkRFQ, requester, deadline } = await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
       await time.increaseTo(deadline)
 
       await expect(
@@ -270,7 +270,7 @@ describe('DarkRFQ', function () {
     it('should reject closing before deadline', async function () {
       const { darkRFQ, requester, maker1, deadline } =
         await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       await initSigner(maker1)
       await darkRFQ.connect(maker1).submitQuote(0, await encryptPrice(1000n))
@@ -292,7 +292,7 @@ describe('DarkRFQ', function () {
         await loadFixture(deployFixture)
 
       // 1. Create buy RFQ
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       // 2. Submit 3 quotes: 1500, 1000, 1200
       await initSigner(maker1)
@@ -319,7 +319,7 @@ describe('DarkRFQ', function () {
       // 5. Reveal results
       await expect(darkRFQ.revealResults(0))
         .to.emit(darkRFQ, 'WinnerRevealed')
-        .withArgs(0, maker2.address, 1000)
+        .withArgs(0, maker2.address, 1000, 0)
 
       info = await darkRFQ.getRFQInfo(0)
       expect(info.status).to.equal(2) // REVEALED
@@ -334,7 +334,7 @@ describe('DarkRFQ', function () {
         await loadFixture(deployFixture)
 
       // 1. Create sell RFQ
-      await darkRFQ.createRFQ('500 USDC', false, 500, deadline)
+      await darkRFQ.createRFQ('500 USDC', false, 500, deadline, 0)
 
       // 2. Submit 3 quotes: 800, 1200, 1000
       await initSigner(maker1)
@@ -364,9 +364,137 @@ describe('DarkRFQ', function () {
 
     it('should reject reveal on non-closed RFQ', async function () {
       const { darkRFQ, deadline } = await loadFixture(deployFixture)
-      await darkRFQ.createRFQ('100 ETH', true, 100, deadline)
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
 
       await expect(darkRFQ.revealResults(0)).to.be.revertedWith('Not closed')
+    })
+  })
+
+  describe('Reveal Policy', function () {
+    beforeEach(function () {
+      if (!hre.cofhe.isPermittedEnvironment('MOCK')) this.skip()
+    })
+
+    it('PRICE_ONLY: reveals price, maker stays hidden', async function () {
+      const { darkRFQ, requester, maker1, maker2, deadline } =
+        await loadFixture(deployFixture)
+
+      // RevealPolicy.PRICE_ONLY = 1
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 1)
+
+      await initSigner(maker1)
+      await darkRFQ.connect(maker1).submitQuote(0, await encryptPrice(1500n))
+
+      await initSigner(maker2)
+      await darkRFQ.connect(maker2).submitQuote(0, await encryptPrice(1000n))
+
+      await time.increaseTo(deadline)
+      await darkRFQ.connect(requester).closeRFQ(0)
+      await time.increase(11)
+
+      await darkRFQ.revealResults(0)
+
+      const info = await darkRFQ.getRFQInfo(0)
+      expect(info.status).to.equal(2) // REVEALED
+      expect(info.winningPriceRevealed).to.equal(true)
+      expect(info.revealedWinningPrice).to.equal(1000)
+      expect(info.winningMakerRevealed).to.equal(false)
+      expect(info.revealedWinningMaker).to.equal(hre.ethers.ZeroAddress)
+    })
+
+    it('MAKER_ONLY: reveals maker, price stays hidden', async function () {
+      const { darkRFQ, requester, maker1, maker2, deadline } =
+        await loadFixture(deployFixture)
+
+      // RevealPolicy.MAKER_ONLY = 2
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 2)
+
+      await initSigner(maker1)
+      await darkRFQ.connect(maker1).submitQuote(0, await encryptPrice(1500n))
+
+      await initSigner(maker2)
+      await darkRFQ.connect(maker2).submitQuote(0, await encryptPrice(1000n))
+
+      await time.increaseTo(deadline)
+      await darkRFQ.connect(requester).closeRFQ(0)
+      await time.increase(11)
+
+      await darkRFQ.revealResults(0)
+
+      const info = await darkRFQ.getRFQInfo(0)
+      expect(info.status).to.equal(2) // REVEALED
+      expect(info.winningMakerRevealed).to.equal(true)
+      expect(info.revealedWinningMaker).to.equal(maker2.address)
+      expect(info.winningPriceRevealed).to.equal(false)
+      expect(info.revealedWinningPrice).to.equal(0)
+    })
+
+    it('BOTH: reveals both price and maker', async function () {
+      const { darkRFQ, requester, maker1, maker2, deadline } =
+        await loadFixture(deployFixture)
+
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 0)
+
+      await initSigner(maker1)
+      await darkRFQ.connect(maker1).submitQuote(0, await encryptPrice(1500n))
+
+      await initSigner(maker2)
+      await darkRFQ.connect(maker2).submitQuote(0, await encryptPrice(1000n))
+
+      await time.increaseTo(deadline)
+      await darkRFQ.connect(requester).closeRFQ(0)
+      await time.increase(11)
+      await darkRFQ.revealResults(0)
+
+      const info = await darkRFQ.getRFQInfo(0)
+      expect(info.status).to.equal(2)
+      expect(info.winningPriceRevealed).to.equal(true)
+      expect(info.winningMakerRevealed).to.equal(true)
+      expect(info.revealedWinningPrice).to.equal(1000)
+      expect(info.revealedWinningMaker).to.equal(maker2.address)
+    })
+
+    it('should store revealPolicy in getRFQInfo', async function () {
+      const { darkRFQ, deadline } = await loadFixture(deployFixture)
+
+      await darkRFQ.createRFQ('A', true, 10, deadline, 0)
+      await darkRFQ.createRFQ('B', true, 10, deadline, 1)
+      await darkRFQ.createRFQ('C', true, 10, deadline, 2)
+
+      const info0 = await darkRFQ.getRFQInfo(0)
+      const info1 = await darkRFQ.getRFQInfo(1)
+      const info2 = await darkRFQ.getRFQInfo(2)
+
+      expect(info0.revealPolicy).to.equal(0) // BOTH
+      expect(info1.revealPolicy).to.equal(1) // PRICE_ONLY
+      expect(info2.revealPolicy).to.equal(2) // MAKER_ONLY
+    })
+
+    it('RFQCreated event includes revealPolicy', async function () {
+      const { darkRFQ, requester, deadline } = await loadFixture(deployFixture)
+
+      await expect(darkRFQ.createRFQ('100 ETH', true, 100, deadline, 1))
+        .to.emit(darkRFQ, 'RFQCreated')
+        .withArgs(0, requester.address, '100 ETH', true, 100, deadline, 1)
+    })
+
+    it('WinnerRevealed event includes revealPolicy', async function () {
+      const { darkRFQ, requester, maker1, deadline } =
+        await loadFixture(deployFixture)
+
+      // PRICE_ONLY = 1: maker should be address(0) in event
+      await darkRFQ.createRFQ('100 ETH', true, 100, deadline, 1)
+
+      await initSigner(maker1)
+      await darkRFQ.connect(maker1).submitQuote(0, await encryptPrice(1000n))
+
+      await time.increaseTo(deadline)
+      await darkRFQ.connect(requester).closeRFQ(0)
+      await time.increase(11)
+
+      await expect(darkRFQ.revealResults(0))
+        .to.emit(darkRFQ, 'WinnerRevealed')
+        .withArgs(0, hre.ethers.ZeroAddress, 1000, 1)
     })
   })
 })

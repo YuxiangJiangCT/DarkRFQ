@@ -25,6 +25,7 @@ Losing quotes remain encrypted forever
 - **Quote privacy**: All prices are encrypted client-side before submission. The contract never sees plaintext prices.
 - **Homomorphic comparison**: Best-price selection happens entirely in the encrypted domain using `FHE.select`.
 - **Selective reveal**: Only the winning price and winning maker are decrypted. All losing quotes remain permanently encrypted.
+- **Configurable reveal policy**: Requesters choose what to reveal — price only, maker only, or both. Unrevealed fields stay encrypted forever.
 - **No trusted party**: The FHE coprocessor handles decryption — no centralized oracle or trusted third party.
 
 ## Tech Stack
@@ -38,7 +39,7 @@ Losing quotes remain encrypted forever
 
 | Network | Address |
 |---------|---------|
-| Ethereum Sepolia | `0xcFB0D5b69e4f606450d3001D8Eb1AED280B212b5` |
+| Ethereum Sepolia | `0x0CFddD9fb73648D095A3791115A89DcE4b96faB6` |
 
 ## Project Structure
 
@@ -46,7 +47,7 @@ Losing quotes remain encrypted forever
 ├── contracts/
 │   └── DarkRFQ.sol              # Core RFQ contract with FHE
 ├── test/
-│   └── DarkRFQ.test.ts          # 18 tests covering full lifecycle
+│   └── DarkRFQ.test.ts          # 24 tests covering full lifecycle + reveal policy
 ├── scripts/
 │   ├── deploy.ts                # Testnet deployment script
 │   └── e2e-local.ts             # Local E2E verification script
@@ -83,7 +84,7 @@ npm install
 npm test
 ```
 
-All 18 tests should pass:
+All 24 tests should pass:
 
 ```
 DarkRFQ
@@ -110,6 +111,13 @@ DarkRFQ
     ✓ full buy RFQ lifecycle: create → quote → close → reveal
     ✓ full sell RFQ lifecycle: create → quote → close → reveal
     ✓ should reject reveal on non-closed RFQ
+  Reveal Policy
+    ✓ PRICE_ONLY: reveals price, maker stays hidden
+    ✓ MAKER_ONLY: reveals maker, price stays hidden
+    ✓ BOTH: reveals both price and maker
+    ✓ should store revealPolicy in getRFQInfo
+    ✓ RFQCreated event includes revealPolicy
+    ✓ WinnerRevealed event includes revealPolicy
 ```
 
 ### Run Local E2E
@@ -136,7 +144,7 @@ Open http://localhost:5173 and connect MetaMask.
 
 ### Demo Flow
 
-1. **Create RFQ** — Set label ("100 ETH"), side (BUY), amount, and deadline
+1. **Create RFQ** — Set label ("100 ETH"), side (BUY), amount, deadline, and reveal policy
 2. **Submit Quotes** — Switch MetaMask accounts, enter a price → encrypted via FHE and submitted
 3. **Close RFQ** — After deadline, the requester closes → triggers async decryption
 4. **Reveal** — Anyone clicks "Reveal Winner" → winning price and maker displayed
@@ -156,7 +164,7 @@ npm run deploy:sepolia
 
 | Function | Description |
 |----------|-------------|
-| `createRFQ(label, isBuy, amount, deadline)` | Create a new RFQ |
+| `createRFQ(label, isBuy, amount, deadline, revealPolicy)` | Create a new RFQ with reveal policy (0=Both, 1=PriceOnly, 2=MakerOnly) |
 | `submitQuote(rfqId, encryptedPrice)` | Submit an FHE-encrypted price quote |
 | `closeRFQ(rfqId)` | Close RFQ after deadline (requester only) |
 | `revealResults(rfqId)` | Reveal winning price + maker after decryption |

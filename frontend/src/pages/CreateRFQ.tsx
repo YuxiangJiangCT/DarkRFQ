@@ -14,6 +14,7 @@ export default function CreateRFQ({ signer, account }: Props) {
   const [isBuy, setIsBuy] = useState(true)
   const [amount, setAmount] = useState('')
   const [minutes, setMinutes] = useState('60')
+  const [revealPolicy, setRevealPolicy] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,7 +48,7 @@ export default function CreateRFQ({ signer, account }: Props) {
       const contract = getContract(signer)
       const deadline = Math.floor(Date.now() / 1000) + Number(minutes) * 60
 
-      const tx = await contract.createRFQ(label, isBuy, BigInt(amount), deadline)
+      const tx = await contract.createRFQ(label, isBuy, BigInt(amount), deadline, revealPolicy)
       const receipt = await tx.wait()
 
       // Parse RFQ ID from event
@@ -127,6 +128,38 @@ export default function CreateRFQ({ signer, account }: Props) {
             placeholder="e.g. 60"
             min="1"
           />
+        </div>
+
+        <div className="form-group">
+          <label>Reveal Policy</label>
+          <div className="toggle-group triple">
+            <button
+              type="button"
+              className={`toggle ${revealPolicy === 0 ? 'active reveal-policy' : ''}`}
+              onClick={() => setRevealPolicy(0)}
+            >
+              Both
+            </button>
+            <button
+              type="button"
+              className={`toggle ${revealPolicy === 1 ? 'active reveal-policy' : ''}`}
+              onClick={() => setRevealPolicy(1)}
+            >
+              Price Only
+            </button>
+            <button
+              type="button"
+              className={`toggle ${revealPolicy === 2 ? 'active reveal-policy' : ''}`}
+              onClick={() => setRevealPolicy(2)}
+            >
+              Maker Only
+            </button>
+          </div>
+          <span className="form-hint">
+            {revealPolicy === 0 && 'Both the winning price and maker will be revealed.'}
+            {revealPolicy === 1 && 'Only the winning price will be revealed. The maker stays anonymous.'}
+            {revealPolicy === 2 && 'Only the winning maker will be revealed. The price stays private.'}
+          </span>
         </div>
 
         {error && <div className="error-msg">{error}</div>}

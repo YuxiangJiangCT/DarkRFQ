@@ -12,6 +12,12 @@ contract DarkRFQ {
         REVEALED
     }
 
+    enum RevealPolicy {
+        BOTH,        // 0 — reveal winning price + maker (default)
+        PRICE_ONLY,  // 1 — reveal only winning price
+        MAKER_ONLY   // 2 — reveal only winning maker
+    }
+
     struct RFQ {
         address requester;
         string label;
@@ -23,6 +29,7 @@ contract DarkRFQ {
         euint64 bestPrice;
         eaddress bestMaker;
         bool hasBestQuote;
+        RevealPolicy revealPolicy;
         bool winningPriceRevealed;
         bool winningMakerRevealed;
         uint64 revealedWinningPrice;
@@ -43,14 +50,16 @@ contract DarkRFQ {
         string label,
         bool isBuy,
         uint256 amount,
-        uint256 deadline
+        uint256 deadline,
+        uint8 revealPolicy
     );
     event QuoteSubmitted(uint256 indexed rfqId, address indexed maker);
     event RFQClosed(uint256 indexed rfqId);
     event WinnerRevealed(
         uint256 indexed rfqId,
         address winner,
-        uint64 price
+        uint64 price,
+        uint8 revealPolicy
     );
 
     // ── Core Functions ────────────────────────────────────────────────
@@ -59,7 +68,8 @@ contract DarkRFQ {
         string calldata label,
         bool isBuy,
         uint256 amount,
-        uint256 deadline
+        uint256 deadline,
+        RevealPolicy revealPolicy
     ) external returns (uint256 rfqId) {
         require(deadline > block.timestamp, "Deadline must be in future");
         require(amount > 0, "Amount must be positive");
@@ -72,8 +82,9 @@ contract DarkRFQ {
         r.amount = amount;
         r.deadline = deadline;
         r.status = RFQStatus.OPEN;
+        r.revealPolicy = revealPolicy;
 
-        emit RFQCreated(rfqId, msg.sender, label, isBuy, amount, deadline);
+        emit RFQCreated(rfqId, msg.sender, label, isBuy, amount, deadline, uint8(revealPolicy));
     }
 
     function submitQuote(
@@ -132,9 +143,13 @@ contract DarkRFQ {
 
         r.status = RFQStatus.CLOSED;
 
-        // Request async decryption of winning price and maker
-        FHE.decrypt(r.bestPrice);
-        FHE.decrypt(r.bestMaker);
+        // Only decrypt what the reveal policy allows
+        if (r.revealPolicy != RevealPolicy.MAKER_ONLY) {
+            FHE.decrypt(r.bestPrice);
+        }
+        if (r.revealPolicy != RevealPolicy.PRICE_ONLY) {
+            FHE.decrypt(r.bestMaker);
+        }
 
         emit RFQClosed(rfqId);
     }
@@ -146,7 +161,10 @@ contract DarkRFQ {
         bool priceReady;
         bool makerReady;
 
-        if (!r.winningPriceRevealed) {
+        // Price: skip if policy is MAKER_ONLY
+        if (r.revealPolicy == RevealPolicy.MAKER_ONLY) {
+            priceReady = true;
+        } else if (!r.winningPriceRevealed) {
             (uint64 price, bool decrypted) = FHE.getDecryptResultSafe(
                 r.bestPrice
             );
@@ -159,7 +177,10 @@ contract DarkRFQ {
             priceReady = true;
         }
 
-        if (!r.winningMakerRevealed) {
+        // Maker: skip if policy is PRICE_ONLY
+        if (r.revealPolicy == RevealPolicy.PRICE_ONLY) {
+            makerReady = true;
+        } else if (!r.winningMakerRevealed) {
             (address maker, bool decrypted) = FHE.getDecryptResultSafe(
                 r.bestMaker
             );
@@ -177,7 +198,8 @@ contract DarkRFQ {
             emit WinnerRevealed(
                 rfqId,
                 r.revealedWinningMaker,
-                r.revealedWinningPrice
+                r.revealedWinningPrice,
+                uint8(r.revealPolicy)
             );
         }
     }
@@ -197,6 +219,7 @@ contract DarkRFQ {
             uint256 deadline,
             RFQStatus status,
             uint256 quoteCount,
+            RevealPolicy revealPolicy,
             bool winningPriceRevealed,
             bool winningMakerRevealed,
             uint64 revealedWinningPrice,
@@ -212,6 +235,7 @@ contract DarkRFQ {
             r.deadline,
             r.status,
             r.quoteCount,
+            r.revealPolicy,
             r.winningPriceRevealed,
             r.winningMakerRevealed,
             r.revealedWinningPrice,

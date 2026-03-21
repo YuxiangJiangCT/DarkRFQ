@@ -1,27 +1,33 @@
 import { ethers } from 'ethers'
 
-export const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || '0xcFB0D5b69e4f606450d3001D8Eb1AED280B212b5'
+export const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || '0x0CFddD9fb73648D095A3791115A89DcE4b96faB6'
 
 export const DARK_RFQ_ABI = [
-  'function createRFQ(string label, bool isBuy, uint256 amount, uint256 deadline) external returns (uint256 rfqId)',
+  'function createRFQ(string label, bool isBuy, uint256 amount, uint256 deadline, uint8 revealPolicy) external returns (uint256 rfqId)',
   'function submitQuote(uint256 rfqId, tuple(uint256 ctHash, uint8 securityZone, uint8 utype, bytes signature) encryptedPrice) external',
   'function closeRFQ(uint256 rfqId) external',
   'function revealResults(uint256 rfqId) external',
-  'function getRFQInfo(uint256 rfqId) external view returns (address requester, string label, bool isBuy, uint256 amount, uint256 deadline, uint8 status, uint256 quoteCount, bool winningPriceRevealed, bool winningMakerRevealed, uint64 revealedWinningPrice, address revealedWinningMaker)',
+  'function getRFQInfo(uint256 rfqId) external view returns (address requester, string label, bool isBuy, uint256 amount, uint256 deadline, uint8 status, uint256 quoteCount, uint8 revealPolicy, bool winningPriceRevealed, bool winningMakerRevealed, uint64 revealedWinningPrice, address revealedWinningMaker)',
   'function getBestPriceHandle(uint256 rfqId) external view returns (uint256)',
   'function getBestMakerHandle(uint256 rfqId) external view returns (uint256)',
   'function nextRfqId() external view returns (uint256)',
   'function hasQuoted(uint256 rfqId, address maker) external view returns (bool)',
-  'event RFQCreated(uint256 indexed rfqId, address indexed requester, string label, bool isBuy, uint256 amount, uint256 deadline)',
+  'event RFQCreated(uint256 indexed rfqId, address indexed requester, string label, bool isBuy, uint256 amount, uint256 deadline, uint8 revealPolicy)',
   'event QuoteSubmitted(uint256 indexed rfqId, address indexed maker)',
   'event RFQClosed(uint256 indexed rfqId)',
-  'event WinnerRevealed(uint256 indexed rfqId, address winner, uint64 price)',
+  'event WinnerRevealed(uint256 indexed rfqId, address winner, uint64 price, uint8 revealPolicy)',
 ] as const
 
 export enum RFQStatus {
   OPEN = 0,
   CLOSED = 1,
   REVEALED = 2,
+}
+
+export enum RevealPolicy {
+  BOTH = 0,
+  PRICE_ONLY = 1,
+  MAKER_ONLY = 2,
 }
 
 export interface RFQInfo {
@@ -33,6 +39,7 @@ export interface RFQInfo {
   deadline: bigint
   status: RFQStatus
   quoteCount: bigint
+  revealPolicy: RevealPolicy
   winningPriceRevealed: boolean
   winningMakerRevealed: boolean
   revealedWinningPrice: bigint
@@ -53,10 +60,11 @@ export function parseRFQInfo(id: number, result: ethers.Result): RFQInfo {
     deadline: result[4],
     status: Number(result[5]) as RFQStatus,
     quoteCount: result[6],
-    winningPriceRevealed: result[7],
-    winningMakerRevealed: result[8],
-    revealedWinningPrice: result[9],
-    revealedWinningMaker: result[10],
+    revealPolicy: Number(result[7]) as RevealPolicy,
+    winningPriceRevealed: result[8],
+    winningMakerRevealed: result[9],
+    revealedWinningPrice: result[10],
+    revealedWinningMaker: result[11],
   }
 }
 
@@ -65,6 +73,15 @@ export function statusLabel(s: RFQStatus): string {
     case RFQStatus.OPEN: return 'Open'
     case RFQStatus.CLOSED: return 'Closed'
     case RFQStatus.REVEALED: return 'Revealed'
+    default: return 'Unknown'
+  }
+}
+
+export function revealPolicyLabel(p: RevealPolicy): string {
+  switch (p) {
+    case RevealPolicy.BOTH: return 'Reveal Both'
+    case RevealPolicy.PRICE_ONLY: return 'Price Only'
+    case RevealPolicy.MAKER_ONLY: return 'Maker Only'
     default: return 'Unknown'
   }
 }
