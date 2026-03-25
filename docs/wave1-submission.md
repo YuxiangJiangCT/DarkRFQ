@@ -32,7 +32,7 @@ The long-term goal: any protocol that needs confidential price discovery can plu
 
 ## Team
 
-<!-- Fill in your team details -->
+Solo builder — **Yuxiang Jiang**
 
 ---
 
