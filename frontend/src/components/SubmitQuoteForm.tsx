@@ -33,13 +33,26 @@ export default function SubmitQuoteForm({ rfqId, provider, signer, onSuccess, on
 
       const chainId = import.meta.env.VITE_CHAIN_ID || '31337'
       const environment = chainId === '31337' ? 'MOCK' : 'TESTNET'
-      await cofhejs.initializeWithEthers({
-        ethersProvider: provider,
-        ethersSigner: signer,
-        environment: environment as 'MOCK' | 'TESTNET',
-      })
+
+      // Initialize cofhejs — retry up to 3 times as FHE key fetch may need time
+      let initResult
+      for (let attempt = 0; attempt < 3; attempt++) {
+        initResult = await cofhejs.initializeWithEthers({
+          ethersProvider: provider,
+          ethersSigner: signer,
+          environment: environment as 'MOCK' | 'TESTNET',
+        })
+        if (initResult.success) break
+        console.warn(`[FHE] Init attempt ${attempt + 1} failed:`, initResult.error)
+        if (attempt < 2) await new Promise(r => setTimeout(r, 2000))
+      }
+
+      if (!initResult!.success) {
+        throw new Error('FHE initialization failed: ' + (initResult!.error?.message || 'unknown'))
+      }
 
       tx.advance()
+
       const result = await cofhejs.encrypt([Encryptable.uint64(BigInt(price))] as const)
 
       if (!result.success) {
