@@ -32,16 +32,25 @@ export default function SubmitQuoteForm({ rfqId, provider, signer, onSuccess, on
       const { cofhejs, Encryptable } = await import('cofhejs/web')
 
       const chainId = import.meta.env.VITE_CHAIN_ID || '31337'
-      const environment = chainId === '31337' ? 'MOCK' : 'TESTNET'
+      const isMock = chainId === '31337'
+      const environment = isMock ? 'MOCK' : 'TESTNET'
 
       // Initialize cofhejs — retry up to 3 times as FHE key fetch may need time
+      const initParams = {
+        ethersProvider: provider,
+        ethersSigner: signer,
+        environment: environment as 'MOCK' | 'TESTNET',
+        // Explicitly pass URLs for non-mock environments (SDK default resolution can fail in bundled builds)
+        ...(!isMock && {
+          coFheUrl: 'https://testnet-cofhe.fhenix.zone',
+          verifierUrl: 'https://testnet-cofhe-vrf.fhenix.zone',
+          thresholdNetworkUrl: 'https://testnet-cofhe-tn.fhenix.zone',
+        }),
+      }
+
       let initResult
       for (let attempt = 0; attempt < 3; attempt++) {
-        initResult = await cofhejs.initializeWithEthers({
-          ethersProvider: provider,
-          ethersSigner: signer,
-          environment: environment as 'MOCK' | 'TESTNET',
-        })
+        initResult = await cofhejs.initializeWithEthers(initParams)
         if (initResult.success) break
         console.warn(`[FHE] Init attempt ${attempt + 1} failed:`, initResult.error)
         if (attempt < 2) await new Promise(r => setTimeout(r, 2000))
