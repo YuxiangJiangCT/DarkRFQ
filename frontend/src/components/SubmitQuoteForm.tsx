@@ -57,6 +57,19 @@ export default function SubmitQuoteForm({ rfqId, provider, signer, onSuccess, on
         },
       }
 
+      // Force-set CoFHE URLs in the SDK store before initializing
+      if (!isMock) {
+        cofhejs.store.setState({
+          coFheUrl: 'https://testnet-cofhe.fhenix.zone',
+          verifierUrl: 'https://testnet-cofhe-vrf.fhenix.zone',
+          thresholdNetworkUrl: 'https://testnet-cofhe-tn.fhenix.zone',
+        })
+        console.log('[FHE] Store after force-set:', {
+          coFheUrl: cofhejs.store.getState().coFheUrl,
+          verifierUrl: cofhejs.store.getState().verifierUrl,
+        })
+      }
+
       // Initialize cofhejs — retry up to 3 times
       let initResult
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -64,11 +77,15 @@ export default function SubmitQuoteForm({ rfqId, provider, signer, onSuccess, on
           provider: abstractProvider,
           signer: abstractSigner,
           environment: environment as 'MOCK' | 'TESTNET',
-          ...(!isMock && {
-            coFheUrl: 'https://testnet-cofhe.fhenix.zone',
-            verifierUrl: 'https://testnet-cofhe-vrf.fhenix.zone',
-            thresholdNetworkUrl: 'https://testnet-cofhe-tn.fhenix.zone',
-          }),
+          coFheUrl: 'https://testnet-cofhe.fhenix.zone',
+          verifierUrl: 'https://testnet-cofhe-vrf.fhenix.zone',
+          thresholdNetworkUrl: 'https://testnet-cofhe-tn.fhenix.zone',
+        })
+        console.log('[FHE] Store after init:', {
+          coFheUrl: cofhejs.store.getState().coFheUrl,
+          verifierUrl: cofhejs.store.getState().verifierUrl,
+          isTestnet: cofhejs.store.getState().isTestnet,
+          fheKeysInitialized: cofhejs.store.getState().fheKeysInitialized,
         })
         if (initResult.success) break
         console.warn(`[FHE] Init attempt ${attempt + 1} failed:`, initResult.error)
