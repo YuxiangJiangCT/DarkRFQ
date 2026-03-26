@@ -35,22 +35,41 @@ export default function SubmitQuoteForm({ rfqId, provider, signer, onSuccess, on
       const isMock = chainId === '31337'
       const environment = isMock ? 'MOCK' : 'TESTNET'
 
-      // Initialize cofhejs — retry up to 3 times as FHE key fetch may need time
-      const initParams = {
-        ethersProvider: provider,
-        ethersSigner: signer,
-        environment: environment as 'MOCK' | 'TESTNET',
-        // Explicitly pass URLs for non-mock environments (SDK default resolution can fail in bundled builds)
-        ...(!isMock && {
-          coFheUrl: 'https://testnet-cofhe.fhenix.zone',
-          verifierUrl: 'https://testnet-cofhe-vrf.fhenix.zone',
-          thresholdNetworkUrl: 'https://testnet-cofhe-tn.fhenix.zone',
-        }),
+      // Build abstract provider/signer for cofhejs.initialize (bypasses initializeWithEthers)
+      const network = await provider.getNetwork()
+      const abstractProvider = {
+        getChainId: async () => network.chainId.toString(),
+        call: async (tx: { to: string; data: string }) => await provider.call(tx),
+        send: async (method: string, params: unknown[]) => await provider.send(method, params),
+      }
+      const abstractSigner = {
+        getAddress: async () => await (signer as ethers.JsonRpcSigner).getAddress(),
+        signTypedData: async (domain: unknown, types: unknown, value: unknown) =>
+          await (signer as ethers.JsonRpcSigner).signTypedData(
+            domain as ethers.TypedDataDomain,
+            types as Record<string, ethers.TypedDataField[]>,
+            value as Record<string, unknown>,
+          ),
+        provider: abstractProvider,
+        sendTransaction: async (tx: { to: string; data: string }) => {
+          const resp = await (signer as ethers.JsonRpcSigner).sendTransaction(tx)
+          return resp.hash
+        },
       }
 
+      // Initialize cofhejs — retry up to 3 times
       let initResult
       for (let attempt = 0; attempt < 3; attempt++) {
-        initResult = await cofhejs.initializeWithEthers(initParams)
+        initResult = await cofhejs.initialize({
+          provider: abstractProvider,
+          signer: abstractSigner,
+          environment: environment as 'MOCK' | 'TESTNET',
+          ...(!isMock && {
+            coFheUrl: 'https://testnet-cofhe.fhenix.zone',
+            verifierUrl: 'https://testnet-cofhe-vrf.fhenix.zone',
+            thresholdNetworkUrl: 'https://testnet-cofhe-tn.fhenix.zone',
+          }),
+        })
         if (initResult.success) break
         console.warn(`[FHE] Init attempt ${attempt + 1} failed:`, initResult.error)
         if (attempt < 2) await new Promise(r => setTimeout(r, 2000))
