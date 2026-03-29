@@ -1,3 +1,11 @@
+![Solidity](https://img.shields.io/badge/Solidity-0.8.25-363636?logo=solidity)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![FHE](https://img.shields.io/badge/FHE-Fhenix%20CoFHE-FF6B35)
+![Tests](https://img.shields.io/badge/Tests-24%20passing-brightgreen)
+![License](https://img.shields.io/badge/License-MIT-blue)
+
+> Built for **Fhenix Privacy-by-Design dApp Buildathon \u2014 Wave 1**
+
 # DarkRFQ
 
 > Privacy-native execution infrastructure for confidential price discovery on public blockchains.
