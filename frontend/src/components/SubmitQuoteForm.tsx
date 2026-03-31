@@ -31,12 +31,12 @@ export default function SubmitQuoteForm({ rfqId, provider, signer, onSuccess, on
 
       const { cofhejs, Encryptable } = await import('cofhejs/web')
 
-      const chainId = import.meta.env.VITE_CHAIN_ID || '31337'
-      const isMock = chainId === '31337'
-      const environment = isMock ? 'MOCK' : 'TESTNET'
-
-      // Build abstract provider/signer for cofhejs.initialize (bypasses initializeWithEthers)
+      // Detect chain from wallet — don't rely on env vars (not available on Vercel)
       const network = await provider.getNetwork()
+      const chainId = Number(network.chainId)
+      const isMock = chainId === 31337
+      const environment = isMock ? 'MOCK' : 'TESTNET'
+      console.log('[FHE] Detected chain:', chainId, 'environment:', environment)
       const abstractProvider = {
         getChainId: async () => network.chainId.toString(),
         call: async (tx: { to: string; data: string }) => await provider.call(tx),
@@ -57,43 +57,20 @@ export default function SubmitQuoteForm({ rfqId, provider, signer, onSuccess, on
         },
       }
 
-      // Force-set CoFHE URLs in the SDK store before initializing
-      if (!isMock) {
-        cofhejs.store.setState({
-          coFheUrl: 'https://testnet-cofhe.fhenix.zone',
-          verifierUrl: 'https://testnet-cofhe-vrf.fhenix.zone',
-          thresholdNetworkUrl: 'https://testnet-cofhe-tn.fhenix.zone',
-        })
-        console.log('[FHE] Store after force-set:', {
-          coFheUrl: cofhejs.store.getState().coFheUrl,
-          verifierUrl: cofhejs.store.getState().verifierUrl,
-        })
-      }
+      // Initialize cofhejs
+      const initResult = await cofhejs.initialize({
+        provider: abstractProvider,
+        signer: abstractSigner,
+        environment: environment as 'MOCK' | 'TESTNET',
+      })
+      console.log('[FHE] Init result:', initResult.success, 'store:', {
+        coFheUrl: cofhejs.store.getState().coFheUrl,
+        isTestnet: cofhejs.store.getState().isTestnet,
+        fheKeysInitialized: cofhejs.store.getState().fheKeysInitialized,
+      })
 
-      // Initialize cofhejs — retry up to 3 times
-      let initResult
-      for (let attempt = 0; attempt < 3; attempt++) {
-        initResult = await cofhejs.initialize({
-          provider: abstractProvider,
-          signer: abstractSigner,
-          environment: environment as 'MOCK' | 'TESTNET',
-          coFheUrl: 'https://testnet-cofhe.fhenix.zone',
-          verifierUrl: 'https://testnet-cofhe-vrf.fhenix.zone',
-          thresholdNetworkUrl: 'https://testnet-cofhe-tn.fhenix.zone',
-        })
-        console.log('[FHE] Store after init:', {
-          coFheUrl: cofhejs.store.getState().coFheUrl,
-          verifierUrl: cofhejs.store.getState().verifierUrl,
-          isTestnet: cofhejs.store.getState().isTestnet,
-          fheKeysInitialized: cofhejs.store.getState().fheKeysInitialized,
-        })
-        if (initResult.success) break
-        console.warn(`[FHE] Init attempt ${attempt + 1} failed:`, initResult.error)
-        if (attempt < 2) await new Promise(r => setTimeout(r, 2000))
-      }
-
-      if (!initResult!.success) {
-        throw new Error('FHE initialization failed: ' + (initResult!.error?.message || 'unknown'))
+      if (!initResult.success) {
+        throw new Error('FHE initialization failed: ' + (initResult.error?.message || 'unknown'))
       }
 
       tx.advance()
